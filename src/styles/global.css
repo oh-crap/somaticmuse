@@ -1,1 +1,62 @@
+/* -------------------------------------------------------------------
+   Fonts (self-hosted via Fontsource)
+   ------------------------------------------------------------------- */
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/dm-sans";
+
+/* -------------------------------------------------------------------
+   Tailwind v4
+   ------------------------------------------------------------------- */
 @import "tailwindcss";
+
+/* -------------------------------------------------------------------
+   Design tokens — exposed as utilities (bg-terracotta-500, text-ink, ...)
+   ------------------------------------------------------------------- */
+@theme {
+  /* Terracotta palette */
+  --color-terracotta-50: #fbf1eb;
+  --color-terracotta-100: #f5dcce;
+  --color-terracotta-200: #eab6a0;
+  --color-terracotta-300: #dc8e73;
+  --color-terracotta-400: #cc745a;
+  --color-terracotta-500: #b8624a;
+  --color-terracotta-600: #9d5240;
+  --color-terracotta-700: #7c4232;
+  --color-terracotta-800: #5c3325;
+  --color-terracotta-900: #3d2218;
+
+  /* Neutrals & accents */
+  --color-cream: #faf6f1;
+  --color-mist: #e8e2db;
+  --color-slate-warm: #5c5854;
+  --color-ink: #2c2a28;
+
+  /* Typography */
+  --font-sans: "DM Sans Variable", system-ui, -apple-system, sans-serif;
+  --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
+}
+
+/* -------------------------------------------------------------------
+   Base styles
+   ------------------------------------------------------------------- */
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-slate-warm);
+    background-color: var(--color-cream);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    color: var(--color-ink);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: var(--color-terracotta-200);
+    color: var(--color-ink);
+  }
+}
