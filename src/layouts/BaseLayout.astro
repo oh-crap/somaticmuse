@@ -1,0 +1,36 @@
+---
+import "../styles/global.css";
+import Navigation from "../components/Navigation.astro";
+
+interface Props {
+  title: string;
+  description?: string;
+  lang?: "ro" | "en";
+}
+
+const { title, description, lang = "ro" } = Astro.props;
+---
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content={lang === "ro" ? "ro_RO" : "en_US"} />
+    <meta property="og:url" content={Astro.url.href} />
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <Navigation lang={lang} />
+    <main class="flex-1">
+      <slot />
+    </main>
+  </body>
+</html>

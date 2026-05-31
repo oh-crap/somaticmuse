@@ -1,0 +1,136 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+
+interface Props {
+  lang: "ro" | "en";
+}
+
+const { lang } = Astro.props;
+
+const otherLang = lang === "ro" ? "en" : "ro";
+const otherLangUrl = getRelativeLocaleUrl(otherLang, "");
+
+const navLinks = {
+  ro: [
+    { href: "#about", label: "Despre" },
+    { href: "#services", label: "Servicii" },
+    { href: "#schedule", label: "Programe" },
+    { href: "#ebook", label: "Ebook" },
+    { href: "#testimonials", label: "Recenzii" },
+    { href: "#contact", label: "Contact" },
+  ],
+  en: [
+    { href: "#about", label: "About" },
+    { href: "#services", label: "Services" },
+    { href: "#schedule", label: "Schedule" },
+    { href: "#ebook", label: "Ebook" },
+    { href: "#testimonials", label: "Testimonials" },
+    { href: "#contact", label: "Contact" },
+  ],
+};
+
+const links = navLinks[lang];
+const home = getRelativeLocaleUrl(lang, "");
+---
+<header
+  class="sticky top-0 z-50 bg-cream/85 backdrop-blur border-b border-mist"
+>
+  <nav
+    class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-6"
+    aria-label="Main"
+  >
+    <!-- Logo / brand -->
+    
+      href={home}
+      class="font-display text-xl text-ink hover:text-terracotta-600 transition-colors"
+    >
+      Somatic Muse
+    </a>
+
+    <!-- Desktop nav links -->
+    <ul class="hidden md:flex items-center gap-7 text-sm">
+      {links.map((link) => (
+        <li>
+          
+            href={link.href}
+            class="text-slate-warm hover:text-terracotta-600 transition-colors"
+          >
+            {link.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <!-- Lang switcher + mobile toggle -->
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 text-sm">
+        <span
+          class={lang === "ro"
+            ? "text-terracotta-600 font-medium"
+            : "text-slate-warm"}
+        >
+          {lang === "ro" ? "RO" : <a href={getRelativeLocaleUrl("ro", "")} class="hover:text-terracotta-600 transition-colors">RO</a>}
+        </span>
+        <span class="text-mist">|</span>
+        <span
+          class={lang === "en"
+            ? "text-terracotta-600 font-medium"
+            : "text-slate-warm"}
+        >
+          {lang === "en" ? "EN" : <a href={otherLangUrl} class="hover:text-terracotta-600 transition-colors">EN</a>}
+        </span>
+      </div>
+
+      <!-- Mobile hamburger -->
+      <button
+        type="button"
+        class="md:hidden p-2 text-ink"
+        aria-label="Toggle menu"
+        data-mobile-menu-toggle
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile menu (hidden by default) -->
+  <div
+    class="md:hidden hidden border-t border-mist bg-cream"
+    data-mobile-menu
+  >
+    <ul class="px-6 py-4 flex flex-col gap-3">
+      {links.map((link) => (
+        <li>
+          
+            href={link.href}
+            class="block py-2 text-slate-warm hover:text-terracotta-600 transition-colors"
+            data-mobile-menu-link
+          >
+            {link.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</header>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>("[data-mobile-menu-toggle]");
+  const menu = document.querySelector<HTMLDivElement>("[data-mobile-menu]");
+  const links = document.querySelectorAll<HTMLAnchorElement>("[data-mobile-menu-link]");
+
+  toggle?.addEventListener("click", () => {
+    menu?.classList.toggle("hidden");
+  });
+
+  // Close menu when a link is clicked (mobile UX)
+  links.forEach((link) => {
+    link.addEventListener("click", () => {
+      menu?.classList.add("hidden");
+    });
+  });
+</script>
