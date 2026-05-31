@@ -1,6 +1,8 @@
 ---
 import "../styles/global.css";
 import Navigation from "../components/Navigation.astro";
+import Footer from "../components/Footer.astro";
+
 
 interface Props {
   title: string;
@@ -9,6 +11,7 @@ interface Props {
 }
 
 const { title, description, lang = "ro" } = Astro.props;
+const cfToken = import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN;
 ---
 <!doctype html>
 <html lang={lang}>
@@ -26,11 +29,20 @@ const { title, description, lang = "ro" } = Astro.props;
     <meta property="og:type" content="website" />
     <meta property="og:locale" content={lang === "ro" ? "ro_RO" : "en_US"} />
     <meta property="og:url" content={Astro.url.href} />
+    {cfToken && (
+      <script
+        is:inline
+        defer
+        src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon={JSON.stringify({ token: cfToken })}
+      />
+    )}
   </head>
   <body class="min-h-screen flex flex-col">
     <Navigation lang={lang} />
-    <main class="flex-1">
+        <main class="flex-1">
       <slot />
     </main>
+    <Footer lang={lang} />
   </body>
 </html>

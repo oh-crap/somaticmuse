@@ -41,7 +41,7 @@ const home = getRelativeLocaleUrl(lang, "");
   >
     <!-- Logo / brand -->
     
-      href={home}
+    <a href={home}
       class="font-display text-xl text-ink hover:text-terracotta-600 transition-colors"
     >
       Somatic Muse
@@ -52,7 +52,7 @@ const home = getRelativeLocaleUrl(lang, "");
       {links.map((link) => (
         <li>
           
-            href={link.href}
+          <a href={link.href}
             class="text-slate-warm hover:text-terracotta-600 transition-colors"
           >
             {link.label}
@@ -106,7 +106,7 @@ const home = getRelativeLocaleUrl(lang, "");
       {links.map((link) => (
         <li>
           
-            href={link.href}
+          <a href={link.href}
             class="block py-2 text-slate-warm hover:text-terracotta-600 transition-colors"
             data-mobile-menu-link
           >
