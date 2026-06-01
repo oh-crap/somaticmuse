@@ -1,22 +1,13 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import Hero from "../components/Hero.astro";
 ---
 <BaseLayout
-  title="Somatic Muse Healing — Yoga și practică somatică"
-  description="Yoga și terapie somatică în București. Mișcare conștientă, respirație și prezență corporală."
+  title="Somatic Muse Healing — Yoga și practică somatică în București"
+  description="Yoga și terapie somatică în București. Mișcare conștientă, respirație și prezență corporală. Sesiuni private și de grup."
   lang="ro"
 >
-  <section class="min-h-[calc(100vh-72px)] flex items-center justify-center p-8">
-    <div class="max-w-xl text-center">
-      <h1 class="text-5xl mb-4">Somatic Muse Healing</h1>
-      <p class="text-lg mb-8">
-        Placeholder pentru versiunea în limba română. Aici va apărea
-        descrierea instructoarei și serviciile oferite.
-      </p>
-      <a href="/en/"
-        class="inline-block px-6 py-3 bg-terracotta-500 text-white rounded-full hover:bg-terracotta-600 transition-colors">
-        English version →
-      </a>
-    </div>
-  </section>
+  <Hero lang="ro" />
+
+  <!-- TODO: 3i — Sections (About, Services, Schedule, Ebook, Testimonials, Contact) -->
 </BaseLayout>

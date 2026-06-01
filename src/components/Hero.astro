@@ -1,0 +1,54 @@
+---
+interface Props {
+  lang: "ro" | "en";
+}
+
+const { lang } = Astro.props;
+
+const content = {
+  ro: {
+    eyebrow: "Yoga & terapie somatică",
+    title: "Mișcare conștientă pentru corp și suflet",
+    tagline: "Sesiuni private și de grup în București. O practică pentru regăsirea echilibrului prin respirație, mișcare și prezență.",
+    primaryCta: "Descoperă servicii",
+    primaryHref: "#services",
+    secondaryCta: "Programează o sesiune",
+    secondaryHref: "#contact",
+  },
+  en: {
+    eyebrow: "Yoga & somatic practice",
+    title: "Conscious movement for body and soul",
+    tagline: "Private and group sessions in Bucharest. A practice for finding balance through breath, movement, and presence.",
+    primaryCta: "Explore services",
+    primaryHref: "#services",
+    secondaryCta: "Book a session",
+    secondaryHref: "#contact",
+  },
+};
+
+const t = content[lang];
+---
+<section class="relative min-h-[calc(100vh-72px)] flex items-center justify-center px-6 py-20 bg-cream/40 backdrop-blur-sm overflow-hidden">
+
+  <!-- Content -->
+  <div class="max-w-3xl text-center relative z-10">
+    <p class="text-xs uppercase tracking-widest text-terracotta-600 mb-4">
+      {t.eyebrow}
+    </p>
+    <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl mb-6 leading-tight">
+      {t.title}
+    </h1>
+    <p class="text-lg md:text-xl text-slate-warm mb-10 max-w-2xl mx-auto leading-relaxed">
+      {t.tagline}
+    </p>
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+      <a href={t.primaryHref} class="inline-block px-8 py-3 bg-terracotta-500 text-white rounded-full hover:bg-terracotta-600 transition-colors font-medium shadow-sm">
+        {t.primaryCta}
+      </a>
+      <a href={t.secondaryHref} class="inline-block px-6 py-3 text-slate-warm hover:text-terracotta-600 transition-colors">
+        {t.secondaryCta} →
+      </a>
+    </div>
+  </div>
+
+</section>
