@@ -12,6 +12,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@somaticmuse/shared": "workspace:*",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/fraunces": "^5.2.9",
     "@supabase/supabase-js": "^2.106.2",

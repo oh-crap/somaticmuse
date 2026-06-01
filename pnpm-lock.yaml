@@ -16,6 +16,9 @@ importers:
       '@fontsource-variable/fraunces':
         specifier: ^5.2.9
         version: 5.2.9
+      '@somaticmuse/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@supabase/supabase-js':
         specifier: ^2.106.2
         version: 2.106.2
@@ -28,6 +31,12 @@ importers:
       tailwindcss:
         specifier: ^4.3.0
         version: 4.3.0
+
+  packages/shared:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.106.2
+        version: 2.106.2
 
 packages:
 
