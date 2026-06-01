@@ -1,5 +1,6 @@
 ---
 import Section from "./Section.astro";
+import { supabase, type Course } from "../lib/supabase";
 
 interface Props {
   lang: "ro" | "en";
@@ -7,77 +8,35 @@ interface Props {
 
 const { lang } = Astro.props;
 
-// Helper to generate ISO date relative to "today" — placeholder data stays in the future
-const today = new Date();
-const courseTime = (daysFromNow: number, hour: number, minute: number = 0) => {
-  const d = new Date(today);
-  d.setDate(d.getDate() + daysFromNow);
-  d.setHours(hour, minute, 0, 0);
-  return d.toISOString();
-};
+// -------------------------------------------------------------------
+// Fetch courses from Supabase (build-time, SSG)
+// -------------------------------------------------------------------
+// Coarse filter: courses ending in the last 24h or later
+// Fine filter applied below in JS (midnight of day course took place)
+const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-// Placeholder data — will be replaced with Supabase fetch in Phase 4
-type CourseFormat = "individual" | "group";
+const { data, error } = await supabase
+  .from("courses")
+  .select("*")
+  .gte("end_at", oneDayAgo.toISOString())
+  .order("start_at", { ascending: true })
+  .returns<Course[]>();
 
-interface Course {
-  id: string;
-  title: string;
-  yoga_style: string;
-  format: CourseFormat;
-  start_at: string;
-  end_at: string;
-  studio_name: string;
-  studio_address: string;
-  booking_url: string;
+if (error) {
+  console.error("[Schedule] Supabase fetch failed:", error.message);
 }
 
-const courses: Course[] = [
-  {
-    id: "1",
-    title: "Hatha Yoga matinală",
-    yoga_style: "Hatha",
-    format: "group",
-    start_at: courseTime(3, 8, 0),
-    end_at: courseTime(3, 9, 30),
-    studio_name: "Studio Verde",
-    studio_address: "Str. Aviator Popișteanu 2, București",
-    booking_url: "https://example.com/book/hatha-morning",
-  },
-  {
-    id: "2",
-    title: "Vinyasa Flow",
-    yoga_style: "Vinyasa",
-    format: "group",
-    start_at: courseTime(5, 18, 0),
-    end_at: courseTime(5, 19, 30),
-    studio_name: "Yoga Space",
-    studio_address: "Calea Victoriei 100, București",
-    booking_url: "https://example.com/book/vinyasa-flow",
-  },
-  {
-    id: "3",
-    title: "Sesiune individuală - Somatic Practice",
-    yoga_style: "Somatic",
-    format: "individual",
-    start_at: courseTime(8, 10, 0),
-    end_at: courseTime(8, 11, 0),
-    studio_name: "Studio privat",
-    studio_address: "Strada Mendeleev 12, București",
-    booking_url: "",
-  },
-];
-
-// Filter: keep course until midnight of the day it took place
+// Fine filter: keep course until midnight of day it took place
 const now = new Date();
-const upcomingCourses = courses.filter((c) => {
+const upcomingCourses = (data ?? []).filter((c) => {
   const end = new Date(c.end_at);
   const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
   return endOfDay > now;
 });
 
-// Sort chronologically
-upcomingCourses.sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
-
+// -------------------------------------------------------------------
+// i18n
+// -------------------------------------------------------------------
 const content = {
   ro: {
     eyebrow: "Programe",
@@ -112,6 +71,7 @@ const formatDate = (isoString: string) => {
     weekday: "long",
     day: "numeric",
     month: "long",
+    timeZone: "Europe/Bucharest",
   }).format(new Date(isoString));
 };
 
@@ -120,6 +80,7 @@ const formatTime = (isoString: string) => {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: "Europe/Bucharest",
   }).format(new Date(isoString));
 };
 ---
