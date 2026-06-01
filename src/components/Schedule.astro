@@ -1,0 +1,173 @@
+---
+import Section from "./Section.astro";
+
+interface Props {
+  lang: "ro" | "en";
+}
+
+const { lang } = Astro.props;
+
+// Helper to generate ISO date relative to "today" — placeholder data stays in the future
+const today = new Date();
+const courseTime = (daysFromNow: number, hour: number, minute: number = 0) => {
+  const d = new Date(today);
+  d.setDate(d.getDate() + daysFromNow);
+  d.setHours(hour, minute, 0, 0);
+  return d.toISOString();
+};
+
+// Placeholder data — will be replaced with Supabase fetch in Phase 4
+type CourseFormat = "individual" | "group";
+
+interface Course {
+  id: string;
+  title: string;
+  yoga_style: string;
+  format: CourseFormat;
+  start_at: string;
+  end_at: string;
+  studio_name: string;
+  studio_address: string;
+  booking_url: string;
+}
+
+const courses: Course[] = [
+  {
+    id: "1",
+    title: "Hatha Yoga matinală",
+    yoga_style: "Hatha",
+    format: "group",
+    start_at: courseTime(3, 8, 0),
+    end_at: courseTime(3, 9, 30),
+    studio_name: "Studio Verde",
+    studio_address: "Str. Aviator Popișteanu 2, București",
+    booking_url: "https://example.com/book/hatha-morning",
+  },
+  {
+    id: "2",
+    title: "Vinyasa Flow",
+    yoga_style: "Vinyasa",
+    format: "group",
+    start_at: courseTime(5, 18, 0),
+    end_at: courseTime(5, 19, 30),
+    studio_name: "Yoga Space",
+    studio_address: "Calea Victoriei 100, București",
+    booking_url: "https://example.com/book/vinyasa-flow",
+  },
+  {
+    id: "3",
+    title: "Sesiune individuală - Somatic Practice",
+    yoga_style: "Somatic",
+    format: "individual",
+    start_at: courseTime(8, 10, 0),
+    end_at: courseTime(8, 11, 0),
+    studio_name: "Studio privat",
+    studio_address: "Strada Mendeleev 12, București",
+    booking_url: "",
+  },
+];
+
+// Filter: keep course until midnight of the day it took place
+const now = new Date();
+const upcomingCourses = courses.filter((c) => {
+  const end = new Date(c.end_at);
+  const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
+  return endOfDay > now;
+});
+
+// Sort chronologically
+upcomingCourses.sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+
+const content = {
+  ro: {
+    eyebrow: "Programe",
+    title: "Sesiuni programate",
+    empty: "Nu există sesiuni programate momentan. Reveniți curând.",
+    book: "Rezervă",
+    bookFallback: "Pentru rezervare contactați-mă direct",
+    formats: {
+      individual: "Individual",
+      group: "Grup",
+    },
+    locale: "ro-RO",
+  },
+  en: {
+    eyebrow: "Schedule",
+    title: "Upcoming sessions",
+    empty: "No upcoming sessions at the moment. Check back soon.",
+    book: "Book",
+    bookFallback: "For booking please contact me directly",
+    formats: {
+      individual: "Individual",
+      group: "Group",
+    },
+    locale: "en-US",
+  },
+};
+
+const t = content[lang];
+
+const formatDate = (isoString: string) => {
+  return new Intl.DateTimeFormat(t.locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(isoString));
+};
+
+const formatTime = (isoString: string) => {
+  return new Intl.DateTimeFormat(t.locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(isoString));
+};
+---
+<Section id="schedule" eyebrow={t.eyebrow} title={t.title}>
+  {upcomingCourses.length === 0 ? (
+    <p class="text-center text-slate-warm text-lg">{t.empty}</p>
+  ) : (
+    <div class="space-y-4">
+      {upcomingCourses.map((course) => (
+        <article class="bg-cream rounded-2xl p-6 md:p-8 border border-mist hover:border-terracotta-200 transition-colors">
+          <div class="grid md:grid-cols-[220px_1fr_auto] gap-4 md:gap-8 items-start">
+
+            <div>
+              <p class="font-display text-lg text-ink leading-snug">{formatDate(course.start_at)}</p>
+              <p class="text-sm text-slate-warm mt-1">
+                {formatTime(course.start_at)} — {formatTime(course.end_at)}
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-2 flex-wrap mb-2">
+                <span class="text-xs uppercase tracking-widest text-terracotta-600">
+                  {course.yoga_style}
+                </span>
+                <span class="text-xs text-mist">•</span>
+                <span class="text-xs text-slate-warm">{t.formats[course.format]}</span>
+              </div>
+              <h3 class="font-display text-xl text-ink mb-2">{course.title}</h3>
+              <p class="text-sm text-slate-warm">
+                {course.studio_name}
+                <span class="text-mist mx-1">—</span>
+                {course.studio_address}
+              </p>
+            </div>
+
+            <div class="md:text-right">
+              {course.booking_url ? (
+                <a href={course.booking_url} target="_blank" rel="noopener noreferrer" class="inline-block px-5 py-2 bg-terracotta-500 text-white rounded-full text-sm hover:bg-terracotta-600 transition-colors whitespace-nowrap">
+                  {t.book}
+                </a>
+              ) : (
+                <span class="text-xs text-slate-warm italic">{t.bookFallback}</span>
+              )}
+            </div>
+
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</Section>
