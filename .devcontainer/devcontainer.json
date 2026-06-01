@@ -20,10 +20,14 @@
       }
     }
   },
-  "forwardPorts": [4321],
+"forwardPorts": [4321, 4322],
   "portsAttributes": {
     "4321": {
-      "label": "Astro Dev Server",
+      "label": "Astro Public Dev",
+      "onAutoForward": "openPreview"
+    },
+    "4322": {
+      "label": "Astro Admin Dev",
       "onAutoForward": "openPreview"
     }
   },

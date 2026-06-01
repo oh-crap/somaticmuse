@@ -8,6 +8,9 @@
   "scripts": {
     "dev:public": "pnpm --filter @somaticmuse/public dev",
     "build:public": "pnpm --filter @somaticmuse/public build",
-    "preview:public": "pnpm --filter @somaticmuse/public preview"
+    "preview:public": "pnpm --filter @somaticmuse/public preview",
+    "dev:admin": "pnpm --filter @somaticmuse/admin dev",
+    "build:admin": "pnpm --filter @somaticmuse/admin build",
+    "preview:admin": "pnpm --filter @somaticmuse/admin preview"
   }
 }
