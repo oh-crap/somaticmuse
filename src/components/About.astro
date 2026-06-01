@@ -1,0 +1,45 @@
+---
+import Section from "./Section.astro";
+
+interface Props {
+  lang: "ro" | "en";
+}
+
+const { lang } = Astro.props;
+
+const content = {
+  ro: {
+    eyebrow: "Despre mine",
+    title: "Practica somatică, prezența și mișcarea conștientă",
+    paragraphs: [
+      "Sunt instructoare de yoga și terapeută somatică, cu o practică de peste 10 ani în domeniul mișcării conștiente și al respirației.",
+      "Lucrez cu oameni care doresc să își reconecteze corpul cu mintea, să își regăsească echilibrul interior și să exploreze mișcarea ca formă de vindecare.",
+      "Sesiunile mele combină principii din yoga clasică, terapie somatică și breathwork, adaptate fiecărei persoane în parte.",
+    ],
+  },
+  en: {
+    eyebrow: "About me",
+    title: "Somatic practice, presence and conscious movement",
+    paragraphs: [
+      "I am a yoga instructor and somatic therapist with over 10 years of experience in conscious movement and breathwork.",
+      "I work with people who want to reconnect their body and mind, find their inner balance, and explore movement as a form of healing.",
+      "My sessions combine principles from classical yoga, somatic therapy, and breathwork — adapted to each individual.",
+    ],
+  },
+};
+
+const t = content[lang];
+---
+<Section id="about" eyebrow={t.eyebrow} title={t.title}>
+  <div class="grid md:grid-cols-2 gap-12 items-center">
+
+    <div class="aspect-[4/5] bg-gradient-to-br from-terracotta-100 to-terracotta-300 rounded-2xl flex items-center justify-center">
+      <span class="text-terracotta-700 text-sm uppercase tracking-widest">Photo placeholder</span>
+    </div>
+
+    <div class="space-y-5 text-lg leading-relaxed">
+      {t.paragraphs.map((p) => <p>{p}</p>)}
+    </div>
+
+  </div>
+</Section>

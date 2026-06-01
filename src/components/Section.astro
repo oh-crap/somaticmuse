@@ -1,0 +1,32 @@
+---
+interface Props {
+  id: string;
+  eyebrow?: string;
+  title: string;
+  bg?: "cream" | "mist" | "terracotta-soft";
+  centered?: boolean;
+}
+
+const { id, eyebrow, title, bg = "cream", centered = false } = Astro.props;
+
+const bgClass = {
+  "cream": "bg-cream",
+  "mist": "bg-mist",
+  "terracotta-soft": "bg-terracotta-50",
+}[bg];
+
+const alignClass = centered ? "text-center" : "";
+---
+<section id={id} class={`relative ${bgClass} py-20 md:py-28 px-6`}>
+  <div class={`max-w-5xl mx-auto ${alignClass}`}>
+    {eyebrow && (
+      <p class="text-xs uppercase tracking-widest text-terracotta-600 mb-3">
+        {eyebrow}
+      </p>
+    )}
+    <h2 class="text-3xl md:text-4xl lg:text-5xl mb-10 leading-tight">
+      {title}
+    </h2>
+    <slot />
+  </div>
+</section>

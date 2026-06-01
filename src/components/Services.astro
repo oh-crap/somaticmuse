@@ -1,0 +1,66 @@
+---
+import Section from "./Section.astro";
+
+interface Props {
+  lang: "ro" | "en";
+}
+
+const { lang } = Astro.props;
+
+const content = {
+  ro: {
+    eyebrow: "Servicii",
+    title: "Cum putem lucra împreună",
+    services: [
+      {
+        title: "Sesiuni private",
+        description: "Sesiuni 1:1 personalizate, adaptate nevoilor și obiectivelor tale. În persoană sau online.",
+      },
+      {
+        title: "Cursuri de grup",
+        description: "Practici săptămânale de yoga și mișcare somatică în grupuri mici, în București.",
+      },
+      {
+        title: "Workshop-uri & retreaturi",
+        description: "Sesiuni tematice intensive pentru explorarea practicii somatice și a respirației.",
+      },
+    ],
+  },
+  en: {
+    eyebrow: "Services",
+    title: "How we can work together",
+    services: [
+      {
+        title: "Private sessions",
+        description: "Personalized 1:1 sessions adapted to your needs and goals. In person or online.",
+      },
+      {
+        title: "Group classes",
+        description: "Weekly yoga and somatic movement practices in small groups, in Bucharest.",
+      },
+      {
+        title: "Workshops & retreats",
+        description: "Intensive themed sessions for exploring somatic practice and breathwork.",
+      },
+    ],
+  },
+};
+
+const t = content[lang];
+---
+<Section id="services" eyebrow={t.eyebrow} title={t.title} bg="mist">
+  <div class="grid md:grid-cols-3 gap-6">
+    {t.services.map((service) => (
+      <article class="bg-cream rounded-2xl p-8 border border-mist hover:border-terracotta-200 transition-colors">
+        <div class="w-12 h-12 rounded-xl bg-terracotta-100 flex items-center justify-center mb-5">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-terracotta-600">
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="4" />
+          </svg>
+        </div>
+        <h3 class="font-display text-xl text-ink mb-3">{service.title}</h3>
+        <p class="text-slate-warm leading-relaxed">{service.description}</p>
+      </article>
+    ))}
+  </div>
+</Section>
