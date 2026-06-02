@@ -10,22 +10,22 @@ const { lang } = Astro.props;
 const content = {
   ro: {
     eyebrow: "Despre mine",
-    title: "Practica somatică, prezența și mișcarea conștientă",
+    title: "Bine ai venit la Somatic Muse.",
     photoAlt: "Somatic Muse Healing — yoga, journaling şi practică somatică",
     paragraphs: [
-      "Sunt instructoare de yoga și terapeută somatică, cu o practică de peste 10 ani în domeniul mișcării conștiente și al respirației.",
-      "Lucrez cu oameni care doresc să își reconecteze corpul cu mintea, să își regăsească echilibrul interior și să exploreze mișcarea ca formă de vindecare.",
-      "Sesiunile mele combină principii din yoga clasică, terapie somatică și breathwork, adaptate fiecărei persoane în parte.",
+      "Numele meu e Catrina. Deși practic yoga de peste 13 ani, nu sunt aici să te învăț „yoga pentru relaxare”.",
+      "Am îmbinat tehnici de yoga, practici somatice, journaling ghidat, precum şi o lungă pasiune pentru psihologie şi am creat Somatic Muse.",
+      "Somatic Muse este un proiect creat pentru oamenii care nu au știut niciodată să fie zen. Cei care funcționează mereu la un nivel înalt, rapid, dar simt că sistemul lor nervos nu mai ține pasul. Ăştia de suntem puţin mai şui şi căutăm ceva cu mai multă însemnătate decât un truc de wellness temporar. Dacă te regăseşti, mi-ar plăcea să te cunosc.",
     ],
   },
   en: {
     eyebrow: "About me",
-    title: "Somatic practice, presence and conscious movement",
+    title: "Welcome to Somatic Muse.",
     photoAlt: "Somatic Muse Healing — yoga, journaling and somatic practice",
     paragraphs: [
-      "I am a yoga instructor and somatic therapist with over 10 years of experience in conscious movement and breathwork.",
-      "I work with people who want to reconnect their body and mind, find their inner balance, and explore movement as a form of healing.",
-      "My sessions combine principles from classical yoga, somatic therapy, and breathwork — adapted to each individual.",
+      "Hi. I’m Cat. Though I’ve been practicing yoga for over 13 years now, I’m not here to teach you “yoga to relax”.",
+      "I’ve combined yoga techniques, somatic practices, guided journaling, as well as a long love for psychology and created Somatic Muse.",
+      "Somatic Muse is a project for people who’ve never known exactly how to be zen. Those high-functioning, fast-thinking individuals whose nervous system is slowly losing its rhythm. For those of us who’ve gone a little awry and are looking for something more meaningful than a temporary wellness hack. If that sounds like you, then you, my friend, I would like to know better.",
     ],
   },
 };
@@ -38,7 +38,7 @@ const t = content[lang];
     <img
       src="https://media.somaticmusehealing.com/images/somatic-muse2.jpg"
       alt={t.photoAlt}
-      class="aspect-[4/5] w-full rounded-2xl object-cover"
+      class="aspect-4/5 w-full rounded-2xl object-cover"
       loading="lazy"
     />
 
