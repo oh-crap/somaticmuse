@@ -7,7 +7,9 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   site: "https://admin.somaticmusehealing.com",
   output: "server",
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    imageService: "passthrough",
+  }),
   security: {
     // CSRF check disabled. Two reasons:
     // 1) Codespace forwards via reverse proxy → Origin header mismatches
