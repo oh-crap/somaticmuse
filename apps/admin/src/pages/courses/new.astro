@@ -1,6 +1,7 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { supabaseAdmin, type Course } from "../../lib/supabase";
+import { formatForInput } from "../../lib/datetime";
 
 // Optional clone source
 const cloneId = Astro.url.searchParams.get("clone");
@@ -17,23 +18,6 @@ if (cloneId) {
 
 // Error from previous submit attempt (server validation failed)
 const errorParam = Astro.url.searchParams.get("error");
-
-// Helper: format ISO datetime for datetime-local input (Bucharest TZ)
-const formatForInput = (iso: string | undefined): string => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const parts = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Europe/Bucharest",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(d);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
-};
 
 const initialValues = cloneSource
   ? {

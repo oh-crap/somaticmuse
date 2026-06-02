@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin, type CourseInsert } from "../../lib/supabase";
+import { parseBucharestDateTime } from "../../lib/datetime";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
   const formData = await request.formData();
@@ -32,8 +33,8 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   let start_at = "";
   let end_at = "";
   try {
-    start_at = start_input ? new Date(start_input).toISOString() : "";
-    end_at = end_input ? new Date(end_input).toISOString() : "";
+    start_at = start_input ? parseBucharestDateTime(start_input) : "";
+    end_at = end_input ? parseBucharestDateTime(end_input) : "";
   } catch {
     errors.push("Invalid date format");
   }
