@@ -1,0 +1,123 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { supabaseAdmin, type Course } from "../../../lib/supabase";
+
+const id = Astro.params.id;
+
+if (!id) {
+  return Astro.redirect("/?error=Missing+course+ID");
+}
+
+// Fetch course from DB
+const { data: course, error: fetchError } = await supabaseAdmin
+  .from("courses")
+  .select("*")
+  .eq("id", id)
+  .single<Course>();
+
+if (fetchError || !course) {
+  return Astro.redirect("/?error=Course+not+found");
+}
+
+// Error from previous submit attempt
+const errorParam = Astro.url.searchParams.get("error");
+
+// Helper: format ISO datetime for datetime-local input (Bucharest TZ)
+const formatForInput = (iso: string): string => {
+  const d = new Date(iso);
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Bucharest",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+};
+
+const initialValues = {
+  title: course.title,
+  yoga_style: course.yoga_style,
+  format: course.format,
+  start_at: formatForInput(course.start_at),
+  end_at: formatForInput(course.end_at),
+  studio_name: course.studio_name,
+  studio_address: course.studio_address,
+  booking_url: course.booking_url ?? "",
+};
+---
+<AdminLayout title="Edit course">
+  <div class="mb-6">
+    <a href="/" class="text-sm text-blue-600 hover:underline">← Back to courses</a>
+  </div>
+
+  <h2 class="text-2xl font-semibold mb-6">Edit course</h2>
+
+  {errorParam && (
+    <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">
+      <strong>Error:</strong> {decodeURIComponent(errorParam)}
+    </div>
+  )}
+
+  <form action={`/api/courses/${id}`} method="POST" class="space-y-5 max-w-2xl">
+
+    <div>
+      <label for="title" class="block text-sm font-medium mb-1">Title *</label>
+      <input type="text" id="title" name="title" required value={initialValues.title} class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="yoga_style" class="block text-sm font-medium mb-1">Yoga style *</label>
+        <input type="text" id="yoga_style" name="yoga_style" required value={initialValues.yoga_style} class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      <div>
+        <label for="format" class="block text-sm font-medium mb-1">Format *</label>
+        <select id="format" name="format" required class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="group" selected={initialValues.format === "group"}>Group</option>
+          <option value="individual" selected={initialValues.format === "individual"}>Individual</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="start_at" class="block text-sm font-medium mb-1">Start *</label>
+        <input type="datetime-local" id="start_at" name="start_at" required value={initialValues.start_at} class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      <div>
+        <label for="end_at" class="block text-sm font-medium mb-1">End *</label>
+        <input type="datetime-local" id="end_at" name="end_at" required value={initialValues.end_at} class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+    </div>
+
+    <div>
+      <label for="studio_name" class="block text-sm font-medium mb-1">Studio name *</label>
+      <input type="text" id="studio_name" name="studio_name" required value={initialValues.studio_name} class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </div>
+
+    <div>
+      <label for="studio_address" class="block text-sm font-medium mb-1">Studio address *</label>
+      <input type="text" id="studio_address" name="studio_address" required value={initialValues.studio_address} class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </div>
+
+    <div>
+      <label for="booking_url" class="block text-sm font-medium mb-1">Booking URL (optional)</label>
+      <input type="url" id="booking_url" name="booking_url" value={initialValues.booking_url} placeholder="https://example.com/book" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <p class="text-xs text-gray-500 mt-1">If left empty, users will see "contact me directly" instead of a booking button.</p>
+    </div>
+
+    <div class="flex items-center gap-3 pt-4 border-t">
+      <button type="submit" class="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+        Save changes
+      </button>
+      <a href="/" class="text-sm text-gray-600 hover:underline">Cancel</a>
+    </div>
+
+  </form>
+</AdminLayout>
