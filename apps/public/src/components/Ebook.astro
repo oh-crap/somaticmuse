@@ -1,0 +1,48 @@
+---
+// apps/public/src/components/Ebook.astro
+// Ebook strip — lead magnet section after Schedule.
+
+export interface Props {
+  badge: string;
+  title: string;
+  description: string;
+  ctaText: string;
+  ctaUrl: string;
+  coverUrl: string;
+  coverAlt: string;
+}
+
+const { badge, title, description, ctaText, ctaUrl, coverUrl, coverAlt } = Astro.props;
+---
+
+<section id="ebook" class="py-20 px-4 bg-cream">
+  <div class="max-w-5xl mx-auto">
+    <div class="grid md:grid-cols-2 gap-10 md:gap-14 items-center">
+
+      <div class="flex justify-center md:justify-end">
+        <a href={ctaUrl} target="_blank" rel="noopener noreferrer" class="block transition-transform hover:scale-[1.02]" aria-label={`${ctaText}: ${title}`}>
+          <img src={coverUrl} alt={coverAlt} loading="lazy" class="w-56 md:w-72 shadow-2xl rounded-sm" />
+        </a>
+      </div>
+
+      <div class="text-center md:text-left">
+        <span class="inline-block bg-terracotta-600 text-white text-xs uppercase tracking-wider px-3 py-1 rounded-full font-medium mb-4">
+          {badge}
+        </span>
+
+        <h2 class="font-display text-3xl md:text-4xl text-ink leading-tight mb-4">
+          {title}
+        </h2>
+
+        <p class="text-slate-warm leading-relaxed mb-8 max-w-md mx-auto md:mx-0">
+          {description}
+        </p>
+
+        <a href={ctaUrl} target="_blank" rel="noopener noreferrer" class="inline-block bg-terracotta-700 hover:bg-terracotta-800 text-white px-8 py-3 rounded-md font-medium transition-colors">
+          {ctaText}
+        </a>
+      </div>
+
+    </div>
+  </div>
+</section>
