@@ -1,0 +1,90 @@
+---
+// apps/admin/src/pages/testimonials/new.astro
+// Form pro vytvoření nového testimonialu.
+
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { supabaseAdmin } from "../../lib/supabase";
+
+// Suggest next display order (max + 1, or 1 if empty table)
+const { data: maxData } = await supabaseAdmin
+  .from("testimonials")
+  .select("display_order")
+  .order("display_order", { ascending: false })
+  .limit(1)
+  .maybeSingle();
+
+const nextOrder = maxData ? maxData.display_order + 1 : 1;
+
+// Error from previous submit attempt
+const errorParam = Astro.url.searchParams.get("error");
+
+const initialValues = {
+  name: "",
+  role_or_location: "",
+  content: "",
+  photo_url: "",
+  display_order: nextOrder,
+  visible: true,
+};
+---
+<AdminLayout title="New testimonial">
+  <div class="mb-6">
+    <a href="/testimonials" class="text-sm text-blue-600 hover:underline">← Back to testimonials</a>
+  </div>
+
+  <h2 class="text-2xl font-semibold mb-6">New testimonial</h2>
+
+  {errorParam && (
+    <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">
+      <strong>Error:</strong> {decodeURIComponent(errorParam)}
+    </div>
+  )}
+
+  <form action="/api/testimonials" method="POST" class="space-y-5 max-w-2xl">
+
+    <div>
+      <label for="name" class="block text-sm font-medium mb-1">Name *</label>
+      <input type="text" id="name" name="name" required value={initialValues.name} placeholder="e.g. Maria" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </div>
+
+    <div>
+      <label for="role_or_location" class="block text-sm font-medium mb-1">Role / Location</label>
+      <input type="text" id="role_or_location" name="role_or_location" value={initialValues.role_or_location} placeholder="e.g. marketing manager, București" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <p class="text-xs text-gray-500 mt-1">Optional. Add only what reviewer consented to publish.</p>
+    </div>
+
+    <div>
+      <label for="content" class="block text-sm font-medium mb-1">Content *</label>
+      <textarea id="content" name="content" required rows="5" placeholder="What did they say about the experience?" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">{initialValues.content}</textarea>
+    </div>
+
+    <div>
+      <label for="photo_url" class="block text-sm font-medium mb-1">Photo URL</label>
+      <input type="url" id="photo_url" name="photo_url" value={initialValues.photo_url} placeholder="https://media.somaticmusehealing.com/images/testimonials/..." class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <p class="text-xs text-gray-500 mt-1">Optional. Full URL to image on CDN. If empty, public website will show monogram initials instead.</p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="display_order" class="block text-sm font-medium mb-1">Display order *</label>
+        <input type="number" id="display_order" name="display_order" required value={initialValues.display_order} min="0" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <p class="text-xs text-gray-500 mt-1">Lower numbers appear first.</p>
+      </div>
+
+      <div class="flex items-center pt-7">
+        <label class="flex items-center cursor-pointer">
+          <input type="checkbox" id="visible" name="visible" checked={initialValues.visible} class="mr-2 w-4 h-4" />
+          <span class="text-sm">Visible on public website</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 pt-4 border-t">
+      <button type="submit" class="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+        Create testimonial
+      </button>
+      <a href="/testimonials" class="text-sm text-gray-600 hover:underline">Cancel</a>
+    </div>
+
+  </form>
+</AdminLayout>

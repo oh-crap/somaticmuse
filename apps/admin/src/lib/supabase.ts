@@ -15,4 +15,7 @@ export type {
   CourseFormat,
   CourseInsert,
   CourseUpdate,
+  Testimonial,
+  TestimonialInsert,
+  TestimonialUpdate,
 } from "@somaticmuse/shared";
