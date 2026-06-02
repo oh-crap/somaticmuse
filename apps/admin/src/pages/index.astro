@@ -29,6 +29,18 @@ const formatDateTime = (iso: string) => {
 };
 
 const isPast = (iso: string) => new Date(iso).getTime() < Date.now();
+
+// Toast message based on query param after redirect
+const statusParam = Astro.url.searchParams.get("status");
+const errorParam = Astro.url.searchParams.get("error");
+
+const statusMessages: Record<string, string> = {
+  created: "Course created successfully",
+  updated: "Course updated successfully",
+  deleted: "Course deleted successfully",
+};
+
+const successMessage = statusParam ? statusMessages[statusParam] : null;
 ---
 <AdminLayout title="Courses">
   <div class="flex items-center justify-between mb-6">
@@ -37,6 +49,18 @@ const isPast = (iso: string) => new Date(iso).getTime() < Date.now();
       + New course
     </a>
   </div>
+
+{successMessage && (
+    <div class="bg-green-50 border border-green-200 text-green-700 p-3 rounded mb-4 text-sm">
+      {successMessage}
+    </div>
+  )}
+
+  {errorParam && (
+    <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">
+      <strong>Error:</strong> {decodeURIComponent(errorParam)}
+    </div>
+  )}
 
   {error && (
     <div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded mb-4">
