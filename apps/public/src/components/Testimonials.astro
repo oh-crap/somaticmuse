@@ -1,0 +1,180 @@
+---
+// apps/public/src/components/Testimonials.astro
+// Testimonials carousel — SSG build-time fetch from Supabase.
+// RLS limits anon SELECT to visible records only.
+// If no testimonials, section is hidden completely.
+
+import Section from "./Section.astro";
+import { supabase } from "../lib/supabase";
+import type { Testimonial } from "@somaticmuse/shared";
+
+interface Props {
+  lang: "ro" | "en";
+}
+
+const { lang } = Astro.props;
+
+const { data, error } = await supabase
+  .from("testimonials")
+  .select("*")
+  .order("display_order", { ascending: true })
+  .returns<Testimonial[]>();
+
+if (error) {
+  console.error("[Testimonials] Supabase fetch failed:", error.message);
+}
+
+const testimonials = data ?? [];
+
+const content = {
+  ro: {
+    eyebrow: "Mărturii",
+    title: "Ce spun cei care practică",
+  },
+  en: {
+    eyebrow: "Testimonials",
+    title: "What students say",
+  },
+};
+
+const t = content[lang];
+
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
+---
+
+{testimonials.length > 0 && (
+  <Section id="testimonials" eyebrow={t.eyebrow} title={t.title}>
+    <div class="max-w-3xl mx-auto" data-testimonials-carousel tabindex="0">
+      <div class="relative">
+        <div class="relative min-h-80">
+          {testimonials.map((testimonial, i) => (
+            <article data-slide aria-hidden={i === 0 ? "false" : "true"} class={`absolute inset-0 transition-opacity duration-500 ${i === 0 ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+              <div class="text-center px-4">
+                {testimonial.photo_url ? (
+                  <img src={testimonial.photo_url} alt={testimonial.name} loading="lazy" class="w-16 h-16 rounded-full object-cover mx-auto mb-6 shadow-md" />
+                ) : (
+                  <div class="w-16 h-16 rounded-full bg-terracotta-500 text-white flex items-center justify-center mx-auto mb-6 shadow-md font-display text-xl">
+                    {getInitials(testimonial.name)}
+                  </div>
+                )}
+
+                <p class="text-slate-warm text-lg md:text-xl italic leading-relaxed max-w-xl mx-auto mb-6">
+                  "{testimonial.content}"
+                </p>
+
+                <p class="font-display text-ink">{testimonial.name}</p>
+                {testimonial.role_or_location && (
+                  <p class="text-sm text-slate-warm mt-1">{testimonial.role_or_location}</p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {testimonials.length > 1 && (
+          <>
+            <button data-prev aria-label="Previous testimonial" class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 md:-translate-x-12 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center text-terracotta-600 hover:bg-terracotta-50 transition-colors">
+              ←
+            </button>
+            <button data-next aria-label="Next testimonial" class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 md:translate-x-12 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center text-terracotta-600 hover:bg-terracotta-50 transition-colors">
+              →
+            </button>
+          </>
+        )}
+      </div>
+
+      {testimonials.length > 1 && (
+        <div data-dots class="flex justify-center gap-2 mt-8">
+          {testimonials.map((_, i) => (
+            <button data-dot aria-label={`Go to testimonial ${i + 1}`} class={`w-2 h-2 rounded-full transition-colors ${i === 0 ? "bg-terracotta-600" : "bg-terracotta-200"}`}></button>
+          ))}
+        </div>
+      )}
+    </div>
+  </Section>
+)}
+
+<script>
+  class TestimonialsCarousel {
+    root: HTMLElement;
+    slides: NodeListOf<HTMLElement>;
+    dots: NodeListOf<HTMLElement>;
+    prevBtn: HTMLElement | null;
+    nextBtn: HTMLElement | null;
+    current: number;
+    total: number;
+    autoRotateInterval: number | null;
+    autoRotateDelay: number;
+
+    constructor(root: HTMLElement) {
+      this.root = root;
+      this.slides = root.querySelectorAll<HTMLElement>('[data-slide]');
+      this.dots = root.querySelectorAll<HTMLElement>('[data-dot]');
+      this.prevBtn = root.querySelector<HTMLElement>('[data-prev]');
+      this.nextBtn = root.querySelector<HTMLElement>('[data-next]');
+      this.current = 0;
+      this.total = this.slides.length;
+      this.autoRotateInterval = null;
+      this.autoRotateDelay = 7000;
+      this.init();
+    }
+
+    init() {
+      if (this.total <= 1) return;
+
+      this.prevBtn?.addEventListener('click', () => this.prev());
+      this.nextBtn?.addEventListener('click', () => this.next());
+      this.dots.forEach((dot: HTMLElement, i: number) => {
+        dot.addEventListener('click', () => this.showSlide(i));
+      });
+
+      this.startAutoRotate();
+      this.root.addEventListener('mouseenter', () => this.stopAutoRotate());
+      this.root.addEventListener('mouseleave', () => this.startAutoRotate());
+
+      this.root.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'ArrowLeft') this.prev();
+        if (e.key === 'ArrowRight') this.next();
+      });
+    }
+
+    showSlide(index: number) {
+      this.current = (index + this.total) % this.total;
+      this.slides.forEach((slide: HTMLElement, i: number) => {
+        const active = i === this.current;
+        slide.classList.toggle('opacity-100', active);
+        slide.classList.toggle('opacity-0', !active);
+        slide.classList.toggle('pointer-events-none', !active);
+        slide.setAttribute('aria-hidden', active ? 'false' : 'true');
+      });
+      this.dots.forEach((dot: HTMLElement, i: number) => {
+        const active = i === this.current;
+        dot.classList.toggle('bg-terracotta-600', active);
+        dot.classList.toggle('bg-terracotta-200', !active);
+      });
+    }
+
+    prev() { this.showSlide(this.current - 1); }
+    next() { this.showSlide(this.current + 1); }
+
+    startAutoRotate() {
+      this.stopAutoRotate();
+      this.autoRotateInterval = window.setInterval(() => this.next(), this.autoRotateDelay);
+    }
+
+    stopAutoRotate() {
+      if (this.autoRotateInterval !== null) {
+        window.clearInterval(this.autoRotateInterval);
+        this.autoRotateInterval = null;
+      }
+    }
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-testimonials-carousel]').forEach((root: HTMLElement) => {
+    new TestimonialsCarousel(root);
+  });
+</script>
