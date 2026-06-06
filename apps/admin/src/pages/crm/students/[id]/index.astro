@@ -1,0 +1,532 @@
+---
+// apps/admin/src/pages/crm/students/[id]/index.astro
+// Student detail — full CRM profile with autosave.
+
+import AdminLayout from "../../../../layouts/AdminLayout.astro";
+import { supabaseAdmin } from "../../../../lib/supabase";
+import type { Student, Tag, Course } from "@somaticmuse/shared";
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect("/crm?error=Missing+student+ID");
+
+// -----------------------------------------------------------------
+// 1. Student
+// -----------------------------------------------------------------
+const { data: student, error: studentError } = await supabaseAdmin
+  .from("students")
+  .select("*")
+  .eq("id", id)
+  .single<Student>();
+
+if (studentError || !student) {
+  return Astro.redirect("/crm?error=Student+not+found");
+}
+
+// -----------------------------------------------------------------
+// 2. Tags (ordered by last_seen_at DESC = newest first)
+// -----------------------------------------------------------------
+const { data: tagsRaw } = await supabaseAdmin
+  .from("student_tags")
+  .select("last_seen_at, tags (id, type, value, color)")
+  .eq("student_id", id)
+  .order("last_seen_at", { ascending: false });
+
+interface TagWithDate {
+  id: string;
+  type: string;
+  value: string;
+  color: string;
+  last_seen_at: string;
+}
+
+const tags: TagWithDate[] = (tagsRaw ?? [])
+  .map((row: any) => ({
+    ...row.tags,
+    last_seen_at: row.last_seen_at,
+  }))
+  .filter(Boolean);
+
+// -----------------------------------------------------------------
+// 3. Student's courses (past + future)
+// -----------------------------------------------------------------
+const { data: coursesRaw } = await supabaseAdmin
+  .from("course_students")
+  .select("courses (id, title, yoga_style, format, start_at, end_at, studio_name)")
+  .eq("student_id", id)
+  .order("created_at", { ascending: false });
+
+interface StudentCourse {
+  id: string;
+  title: string;
+  yoga_style: string;
+  format: string;
+  start_at: string;
+  end_at: string;
+  studio_name: string;
+}
+
+const allCourses: StudentCourse[] = (coursesRaw ?? [])
+  .map((row: any) => row.courses)
+  .filter(Boolean)
+  .sort((a: StudentCourse, b: StudentCourse) =>
+    new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+  );
+
+const now = new Date();
+const pastCourses = allCourses.filter(c => new Date(c.start_at) < now);
+const futureCourses = allCourses.filter(c => new Date(c.start_at) >= now);
+
+// -----------------------------------------------------------------
+// 4. Studio colors (for calendar entries)
+// -----------------------------------------------------------------
+const { data: studioTags } = await supabaseAdmin
+  .from("tags")
+  .select("value, color")
+  .eq("type", "studio");
+
+const studioColorMap: Record<string, string> = {};
+(studioTags ?? []).forEach((t: any) => {
+  studioColorMap[t.value] = t.color;
+});
+
+// -----------------------------------------------------------------
+// 5. Available courses for enrollment (future, not already enrolled)
+// -----------------------------------------------------------------
+const enrolledCourseIds = new Set(allCourses.map(c => c.id));
+
+const { data: availableCoursesRaw } = await supabaseAdmin
+  .from("courses")
+  .select("id, title, yoga_style, format, start_at, studio_name")
+  .gt("start_at", now.toISOString())
+  .order("start_at", { ascending: true });
+
+const availableCourses = (availableCoursesRaw ?? [])
+  .filter((c: any) => !enrolledCourseIds.has(c.id));
+
+// -----------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------
+const formatDT = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    weekday: "short", day: "2-digit", month: "short",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: "Europe/Bucharest",
+  }).format(new Date(iso));
+
+const formatDateShort = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit", month: "short", year: "numeric",
+    timeZone: "Europe/Bucharest",
+  }).format(new Date(iso));
+
+const isPast = (iso: string) => new Date(iso) < now;
+
+const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
+
+// Toast
+const statusParam = Astro.url.searchParams.get("status");
+const errorParam = Astro.url.searchParams.get("error");
+const statusMessages: Record<string, string> = {
+  created: "Student created",
+  enrolled: "Enrolled in course",
+  holiday_set: "Holiday updated",
+  deactivated: "Student deactivated",
+  reactivated: "Student reactivated",
+};
+const successMessage = statusParam ? statusMessages[statusParam] : null;
+
+const whatsappUrl = student.phone
+  ? `https://wa.me/${student.phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`
+  : null;
+
+const mailtoUrl = student.email ? `mailto:${student.email}` : null;
+---
+<AdminLayout title={`${student.first_name} ${student.last_name}`}>
+
+  {/* Back + status badge */}
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+    <a href="/crm" class="text-sm text-blue-600 hover:underline">← Back to CRM</a>
+    {!student.active && (
+      <span class="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-xs font-medium">Inactive</span>
+    )}
+  </div>
+
+  {/* Toasts */}
+  {successMessage && (
+    <div class="bg-green-50 border border-green-200 text-green-700 p-3 rounded mb-4 text-sm">{successMessage}</div>
+  )}
+  {errorParam && (
+    <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">
+      <strong>Error:</strong> {decodeURIComponent(errorParam)}
+    </div>
+  )}
+
+  {/* Autosave indicator */}
+  <div id="save-status" class="fixed top-2 right-2 z-50 text-xs px-3 py-1.5 rounded-full shadow-sm hidden transition-opacity"></div>
+
+  <!-- ============================================================ -->
+  <!-- MAIN 3-COLUMN GRID (stacks on mobile)                       -->
+  <!-- ============================================================ -->
+  <div class="grid grid-cols-1 md:grid-cols-[200px_1fr_220px] gap-6">
+
+    <!-- ========== LEFT: Photo + Tags + Contacts ================= -->
+    <div class="space-y-4">
+
+      {/* Photo */}
+      <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+        {student.photo_url ? (
+          <img src={student.photo_url} alt="" class="w-full h-full object-cover" />
+        ) : (
+          <span class="text-4xl font-bold text-gray-300">{initials(student.first_name, student.last_name)}</span>
+        )}
+      </div>
+
+      {/* Name (editable) */}
+      <div class="space-y-1">
+        <input
+          type="text" data-field="first_name" value={student.first_name}
+          class="w-full text-lg font-semibold border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 transition-colors"
+          placeholder="First name"
+        />
+        <input
+          type="text" data-field="last_name" value={student.last_name}
+          class="w-full text-lg font-semibold border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 transition-colors"
+          placeholder="Last name"
+        />
+      </div>
+
+      {/* Tags */}
+      {tags.length > 0 && (
+        <div class="flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <span
+              class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium text-white"
+              style={`background-color: ${tag.color}`}
+              title={`${tag.type}: ${tag.value}`}
+            >
+              {tag.value}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Contacts */}
+      <div class="space-y-2 text-sm">
+        <div>
+          <label class="block text-[11px] text-gray-400 uppercase tracking-wider mb-0.5">Email</label>
+          <input
+            type="email" data-field="email" value={student.email ?? ""}
+            class="w-full border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 text-sm transition-colors"
+            placeholder="—"
+          />
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-400 uppercase tracking-wider mb-0.5">Phone</label>
+          <input
+            type="tel" data-field="phone" value={student.phone ?? ""}
+            class="w-full border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 text-sm transition-colors"
+            placeholder="—"
+          />
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-400 uppercase tracking-wider mb-0.5">Facebook</label>
+          <input
+            type="url" data-field="facebook_url" value={student.facebook_url ?? ""}
+            class="w-full border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 text-sm transition-colors truncate"
+            placeholder="—"
+          />
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-400 uppercase tracking-wider mb-0.5">Instagram</label>
+          <input
+            type="url" data-field="instagram_url" value={student.instagram_url ?? ""}
+            class="w-full border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 text-sm transition-colors truncate"
+            placeholder="—"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== CENTER: Note blocks =========================== -->
+    <div class="space-y-4">
+
+      {/* Health & sports */}
+      <div class="bg-white border rounded-lg p-4">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Health & sports</h3>
+        <textarea
+          data-field="notes_health" rows="4"
+          class="w-full border-0 focus:outline-none focus:ring-0 bg-transparent text-sm resize-y min-h-[80px]"
+          placeholder="Health conditions, sports activities, physical notes…"
+        >{student.notes_health ?? ""}</textarea>
+      </div>
+
+      {/* Family & pets */}
+      <div class="bg-white border rounded-lg p-4">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Family & pets</h3>
+        <textarea
+          data-field="notes_family" rows="4"
+          class="w-full border-0 focus:outline-none focus:ring-0 bg-transparent text-sm resize-y min-h-[80px]"
+          placeholder="Family situation, kids, pets…"
+        >{student.notes_family ?? ""}</textarea>
+      </div>
+
+      {/* Hobbies & misc */}
+      <div class="bg-white border rounded-lg p-4">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Hobbies & misc</h3>
+        <textarea
+          data-field="notes_hobbies" rows="4"
+          class="w-full border-0 focus:outline-none focus:ring-0 bg-transparent text-sm resize-y min-h-[80px]"
+          placeholder="Hobbies, interests, conversation topics…"
+        >{student.notes_hobbies ?? ""}</textarea>
+      </div>
+
+      {/* Other notes */}
+      <div class="bg-white border rounded-lg p-4">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Other notes</h3>
+        <textarea
+          data-field="notes_other" rows="4"
+          class="w-full border-0 focus:outline-none focus:ring-0 bg-transparent text-sm resize-y min-h-[80px]"
+          placeholder="Anything else worth remembering…"
+        >{student.notes_other ?? ""}</textarea>
+      </div>
+    </div>
+
+    <!-- ========== RIGHT: Calendar + Actions ===================== -->
+    <div class="space-y-5">
+
+      {/* Calendar — course history + future */}
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Calendar</h3>
+
+        {allCourses.length === 0 ? (
+          <p class="text-sm text-gray-400 italic">No courses yet.</p>
+        ) : (
+          <div class="space-y-1.5 max-h-[360px] overflow-y-auto pr-1">
+            {/* Future courses first (upcoming at top) */}
+            {futureCourses.map((c) => {
+              const color = studioColorMap[c.studio_name] ?? "#6B7280";
+              return (
+                <div
+                  class="flex items-start gap-2 px-2.5 py-1.5 rounded text-xs border-l-[3px]"
+                  style={`border-left-color: ${color}; background-color: ${color}11`}
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="font-medium text-gray-800 truncate">{c.title}</div>
+                    <div class="text-gray-500">{formatDT(c.start_at)}</div>
+                  </div>
+                  <span class="shrink-0 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
+                    upcoming
+                  </span>
+                </div>
+              );
+            })}
+
+            {/* Past courses (newest first) */}
+            {[...pastCourses].reverse().map((c) => {
+              const color = studioColorMap[c.studio_name] ?? "#6B7280";
+              return (
+                <div
+                  class="flex items-start gap-2 px-2.5 py-1.5 rounded text-xs border-l-[3px] opacity-70"
+                  style={`border-left-color: ${color}; background-color: ${color}08`}
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="font-medium text-gray-600 truncate">{c.title}</div>
+                    <div class="text-gray-400">{formatDateShort(c.start_at)}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Action buttons */}
+      <div class="space-y-2">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Actions</h3>
+
+        {/* Save (explicit) */}
+        <button
+          id="btn-save"
+          type="button"
+          class="w-full px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+        >
+          💾 Save changes
+        </button>
+
+        {/* Enroll in course */}
+        {availableCourses.length > 0 ? (
+          <form action={`/api/crm/students/${id}/enroll`} method="POST" class="flex gap-1">
+            <select name="course_id" required class="flex-1 min-w-0 px-2 py-2 border rounded text-xs bg-white">
+              <option value="">Enroll in…</option>
+              {availableCourses.map((c: any) => (
+                <option value={c.id}>
+                  {c.title} — {formatDateShort(c.start_at)}
+                </option>
+              ))}
+            </select>
+            <button type="submit" class="px-3 py-2 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors shrink-0">
+              +
+            </button>
+          </form>
+        ) : (
+          <p class="text-xs text-gray-400 italic">No available courses to enroll.</p>
+        )}
+
+        {/* WhatsApp */}
+        {whatsappUrl ? (
+          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
+            class="block w-full px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded text-sm text-center hover:bg-green-100 transition-colors">
+            💬 WhatsApp
+          </a>
+        ) : (
+          <span class="block w-full px-3 py-2 bg-gray-50 text-gray-400 border rounded text-sm text-center cursor-not-allowed">
+            💬 WhatsApp (no phone)
+          </span>
+        )}
+
+        {/* Email */}
+        {mailtoUrl ? (
+          <a href={mailtoUrl}
+            class="block w-full px-3 py-2 bg-white border rounded text-sm text-center text-gray-700 hover:bg-gray-50 transition-colors">
+            ✉️ Send email
+          </a>
+        ) : (
+          <span class="block w-full px-3 py-2 bg-gray-50 text-gray-400 border rounded text-sm text-center cursor-not-allowed">
+            ✉️ Send email (no email)
+          </span>
+        )}
+
+        {/* Holiday */}
+        <form action={`/api/crm/students/${id}/holiday`} method="POST" class="flex gap-1">
+          <input
+            type="date" name="holiday_until"
+            value={student.holiday_until ?? ""}
+            class="flex-1 min-w-0 px-2 py-2 border rounded text-xs bg-white"
+          />
+          <button type="submit" class="px-3 py-2 bg-white border rounded text-xs text-gray-700 hover:bg-gray-50 transition-colors shrink-0">
+            🏖️
+          </button>
+        </form>
+        {student.holiday_until && (
+          <p class="text-[11px] text-amber-600">On holiday until {student.holiday_until}</p>
+        )}
+
+        {/* Deactivate / Reactivate */}
+        <form action={`/api/crm/students/${id}/deactivate`} method="POST">
+          <button
+            type="submit"
+            class:list={[
+              "w-full px-3 py-2 border rounded text-sm transition-colors",
+              student.active
+                ? "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
+                : "text-green-700 bg-green-50 border-green-200 hover:bg-green-100",
+            ]}
+          >
+            {student.active ? "⏸ Deactivate" : "▶ Reactivate"}
+          </button>
+        </form>
+
+        {/* Delete */}
+        <form
+          action={`/api/crm/students/${id}/delete`}
+          method="POST"
+          onsubmit="return confirm('Permanently delete this student and all their records? This cannot be undone.');"
+        >
+          <button type="submit" class="w-full px-3 py-2 text-red-600 bg-red-50 border border-red-200 rounded text-sm hover:bg-red-100 transition-colors">
+            🗑 Delete student
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</AdminLayout>
+
+<!-- ============================================================== -->
+<!-- AUTOSAVE SCRIPT (client-side)                                  -->
+<!-- ============================================================== -->
+<script define:vars={{ studentId: id }}>
+  (() => {
+    const DEBOUNCE_MS = 1000;
+    const ENDPOINT = `/api/crm/students/${studentId}`;
+    const statusEl = document.getElementById("save-status");
+
+    let timer = null;
+    let pendingFields = {};
+
+    function showStatus(text, type) {
+      if (!statusEl) return;
+      statusEl.textContent = text;
+      statusEl.className =
+        "fixed top-2 right-2 z-50 text-xs px-3 py-1.5 rounded-full shadow-sm transition-opacity " +
+        (type === "ok"
+          ? "bg-green-100 text-green-700"
+          : type === "err"
+            ? "bg-red-100 text-red-700"
+            : "bg-gray-100 text-gray-500");
+      statusEl.classList.remove("hidden");
+      if (type === "ok") {
+        setTimeout(() => statusEl.classList.add("hidden"), 2000);
+      }
+    }
+
+    async function flush() {
+      const data = { ...pendingFields };
+      pendingFields = {};
+      if (Object.keys(data).length === 0) return;
+
+      showStatus("Saving…", "saving");
+      try {
+        const res = await fetch(ENDPOINT, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (res.ok) {
+          showStatus("Saved", "ok");
+        } else {
+          showStatus(json.error || "Save failed", "err");
+        }
+      } catch (err) {
+        showStatus("Network error", "err");
+      }
+    }
+
+    function scheduleFlush() {
+      clearTimeout(timer);
+      timer = setTimeout(flush, DEBOUNCE_MS);
+    }
+
+    // Attach listeners to all [data-field] elements
+    document.querySelectorAll("[data-field]").forEach((el) => {
+      const field = el.getAttribute("data-field");
+      el.addEventListener("input", () => {
+        pendingFields[field] = el.value;
+        scheduleFlush();
+      });
+    });
+
+    // Explicit save button
+    const btnSave = document.getElementById("btn-save");
+    if (btnSave) {
+      btnSave.addEventListener("click", () => {
+        clearTimeout(timer);
+        // Collect ALL current field values
+        document.querySelectorAll("[data-field]").forEach((el) => {
+          pendingFields[el.getAttribute("data-field")] = el.value;
+        });
+        flush();
+      });
+    }
+
+    // Flush before unload
+    window.addEventListener("beforeunload", () => {
+      if (Object.keys(pendingFields).length > 0) {
+        // Use sendBeacon for reliability
+        const blob = new Blob([JSON.stringify(pendingFields)], { type: "application/json" });
+        navigator.sendBeacon(ENDPOINT + "?_method=PATCH", blob);
+      }
+    });
+  })();
+</script>

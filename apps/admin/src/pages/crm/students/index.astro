@@ -1,0 +1,116 @@
+---
+// apps/admin/src/pages/crm/students/index.astro
+// Alphabetical list of all students.
+
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { supabaseAdmin } from "../../../lib/supabase";
+import type { Student } from "@somaticmuse/shared";
+
+const { data, error } = await supabaseAdmin
+  .from("students")
+  .select("id, first_name, last_name, photo_url, email, phone, active")
+  .order("last_name", { ascending: true })
+  .order("first_name", { ascending: true })
+  .returns<Pick<Student, "id" | "first_name" | "last_name" | "photo_url" | "email" | "phone" | "active">[]>();
+
+if (error) {
+  console.error("[CRM] Failed to fetch students:", error.message);
+}
+
+const students = data ?? [];
+
+const initials = (first: string, last: string) =>
+  `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+
+// Group by first letter of last_name
+const grouped = students.reduce<Record<string, typeof students>>((acc, s) => {
+  const letter = s.last_name.charAt(0).toUpperCase();
+  if (!acc[letter]) acc[letter] = [];
+  acc[letter].push(s);
+  return acc;
+}, {});
+
+const letters = Object.keys(grouped).sort();
+---
+<AdminLayout title="Students — A–Z">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <a href="/crm" class="text-sm text-blue-600 hover:underline">← Back to CRM</a>
+      <h2 class="text-2xl font-semibold mt-1">All students</h2>
+      <p class="text-sm text-gray-500">{students.length} total</p>
+    </div>
+    <a href="/crm/students/new" class="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors">
+      + Add student
+    </a>
+  </div>
+
+  {error && (
+    <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">
+      Error loading students: {error.message}
+    </div>
+  )}
+
+  {!error && students.length === 0 && (
+    <p class="text-gray-500 text-sm">No students yet.</p>
+  )}
+
+  {/* Letter jump bar */}
+  {letters.length > 1 && (
+    <div class="flex flex-wrap gap-1 mb-6 text-sm">
+      {letters.map((letter) => (
+        <a
+          href={`#letter-${letter}`}
+          class="w-8 h-8 flex items-center justify-center rounded bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition-colors font-medium"
+        >
+          {letter}
+        </a>
+      ))}
+    </div>
+  )}
+
+  {/* Student list grouped by letter */}
+  <div class="space-y-6">
+    {letters.map((letter) => (
+      <div id={`letter-${letter}`}>
+        <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 sticky top-0 bg-[#f9fafb] py-1">
+          {letter}
+        </h3>
+        <div class="bg-white border rounded-lg divide-y">
+          {grouped[letter].map((s) => (
+            <a
+              href={`/crm/students/${s.id}`}
+              class:list={[
+                "flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group",
+                !s.active && "opacity-50",
+              ]}
+            >
+              {s.photo_url ? (
+                <img src={s.photo_url} alt="" class="w-9 h-9 rounded-full object-cover shrink-0" />
+              ) : (
+                <span class="w-9 h-9 rounded-full bg-gray-200 text-gray-600 text-xs font-medium flex items-center justify-center shrink-0">
+                  {initials(s.first_name, s.last_name)}
+                </span>
+              )}
+
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 truncate">
+                  {s.last_name}, {s.first_name}
+                  {!s.active && <span class="ml-2 text-xs text-gray-400 font-normal">(inactive)</span>}
+                </div>
+                {(s.email || s.phone) && (
+                  <div class="text-xs text-gray-400 truncate">
+                    {[s.email, s.phone].filter(Boolean).join(" · ")}
+                  </div>
+                )}
+              </div>
+
+              <svg class="w-4 h-4 text-gray-300 group-hover:text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+</AdminLayout>

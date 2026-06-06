@@ -1,0 +1,135 @@
+---
+// apps/admin/src/pages/crm/students/search.astro
+// Student search — server-side search via query parameter.
+
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { supabaseAdmin } from "../../../lib/supabase";
+import type { Student } from "@somaticmuse/shared";
+
+const query = Astro.url.searchParams.get("q")?.trim() ?? "";
+
+type StudentRow = Pick<Student, "id" | "first_name" | "last_name" | "photo_url" | "email" | "phone" | "active">;
+
+let students: StudentRow[] = [];
+let searchError: string | null = null;
+
+if (query.length > 0) {
+  // Search by name (first or last) using ilike
+  // Split query into words for multi-word search
+  const words = query.split(/\s+/).filter(Boolean);
+
+  let dbQuery = supabaseAdmin
+    .from("students")
+    .select("id, first_name, last_name, photo_url, email, phone, active");
+
+  if (words.length === 1) {
+    // Single word: match either first or last name
+    const pattern = `%${words[0]}%`;
+    dbQuery = dbQuery.or(`first_name.ilike.${pattern},last_name.ilike.${pattern}`);
+  } else {
+    // Multiple words: try first+last combination both ways
+    const w1 = `%${words[0]}%`;
+    const w2 = `%${words.slice(1).join(" ")}%`;
+    dbQuery = dbQuery.or(
+      `and(first_name.ilike.${w1},last_name.ilike.${w2}),and(first_name.ilike.${w2},last_name.ilike.${w1})`
+    );
+  }
+
+  const { data, error } = await dbQuery
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true })
+    .limit(50)
+    .returns<StudentRow[]>();
+
+  if (error) {
+    console.error("[CRM] Search failed:", error.message);
+    searchError = error.message;
+  }
+  students = data ?? [];
+}
+
+const initials = (first: string, last: string) =>
+  `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+---
+<AdminLayout title="Search students">
+  <div class="mb-6">
+    <a href="/crm" class="text-sm text-blue-600 hover:underline">← Back to CRM</a>
+    <h2 class="text-2xl font-semibold mt-1">Search students</h2>
+  </div>
+
+  {/* Search form */}
+  <form method="GET" action="/crm/students/search" class="mb-6 max-w-xl">
+    <div class="flex gap-2">
+      <input
+        type="text"
+        name="q"
+        value={query}
+        placeholder="Search by name…"
+        autofocus
+        class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm">
+        Search
+      </button>
+    </div>
+  </form>
+
+  {searchError && (
+    <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">
+      Error: {searchError}
+    </div>
+  )}
+
+  {/* Results */}
+  {query.length > 0 && !searchError && (
+    <div>
+      <p class="text-sm text-gray-500 mb-3">
+        {students.length === 0
+          ? `No students found for "${query}".`
+          : `${students.length} result${students.length === 1 ? "" : "s"} for "${query}"`}
+      </p>
+
+      {students.length > 0 && (
+        <div class="bg-white border rounded-lg divide-y">
+          {students.map((s) => (
+            <a
+              href={`/crm/students/${s.id}`}
+              class:list={[
+                "flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group",
+                !s.active && "opacity-50",
+              ]}
+            >
+              {s.photo_url ? (
+                <img src={s.photo_url} alt="" class="w-9 h-9 rounded-full object-cover shrink-0" />
+              ) : (
+                <span class="w-9 h-9 rounded-full bg-gray-200 text-gray-600 text-xs font-medium flex items-center justify-center shrink-0">
+                  {initials(s.first_name, s.last_name)}
+                </span>
+              )}
+
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 truncate">
+                  {s.first_name} {s.last_name}
+                  {!s.active && <span class="ml-2 text-xs text-gray-400 font-normal">(inactive)</span>}
+                </div>
+                {(s.email || s.phone) && (
+                  <div class="text-xs text-gray-400 truncate">
+                    {[s.email, s.phone].filter(Boolean).join(" · ")}
+                  </div>
+                )}
+              </div>
+
+              <svg class="w-4 h-4 text-gray-300 group-hover:text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+
+  {query.length === 0 && (
+    <p class="text-sm text-gray-400">Type a name to search.</p>
+  )}
+</AdminLayout>
