@@ -3,7 +3,7 @@
 // Accepts JSON body with any subset of editable fields.
 
 import type { APIRoute } from "astro";
-import { supabaseAdmin } from "../../../../lib/supabase";
+import { supabaseAdmin } from "../../../../../lib/supabase";
 import type { StudentUpdate } from "@somaticmuse/shared";
 
 /** Fields that the client is allowed to PATCH. */

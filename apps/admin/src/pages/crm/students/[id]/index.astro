@@ -172,14 +172,20 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
     <!-- ========== LEFT: Photo + Tags + Contacts ================= -->
     <div class="space-y-4">
 
-      {/* Photo */}
-      <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+        {/* Photo */}
+      <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center" id="photo-preview">
         {student.photo_url ? (
-          <img src={student.photo_url} alt="" class="w-full h-full object-cover" />
+          <img src={student.photo_url} alt="" class="w-full h-full object-cover" id="photo-img" />
         ) : (
-          <span class="text-4xl font-bold text-gray-300">{initials(student.first_name, student.last_name)}</span>
+          <span class="text-4xl font-bold text-gray-300" id="photo-initials">{initials(student.first_name, student.last_name)}</span>
         )}
       </div>
+      <input
+        type="url" data-field="photo_url" value={student.photo_url ?? ""}
+        class="w-full border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 text-[11px] text-gray-400 transition-colors truncate"
+        placeholder="Photo URL (paste from FB/Instagram)"
+        id="photo-url-input"
+      />
 
       {/* Name (editable) */}
       <div class="space-y-1">
@@ -529,4 +535,19 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
       }
     });
   })();
+
+  // Live photo preview on URL change
+    const photoInput = document.getElementById("photo-url-input");
+    const photoPreview = document.getElementById("photo-preview");
+    if (photoInput && photoPreview) {
+      photoInput.addEventListener("change", () => {
+        const url = photoInput.value.trim();
+        if (url) {
+          photoPreview.innerHTML = `<img src="${url}" alt="" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\\'text-4xl font-bold text-red-300\\'>✕</span>'" />`;
+        } else {
+          photoPreview.innerHTML = `<span class="text-4xl font-bold text-gray-300">??</span>`;
+        }
+      });
+    }
+    
 </script>
