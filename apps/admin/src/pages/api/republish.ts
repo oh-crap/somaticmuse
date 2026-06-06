@@ -1,37 +1,21 @@
 // apps/admin/src/pages/api/republish.ts
+// POST endpoint that triggers Cloudflare Pages deploy hook (manual republish).
+// Called from the Republish button in AdminLayout header.
+
 import type { APIRoute } from "astro";
-import { env } from "cloudflare:workers";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
   const formData = await request.formData();
   const redirectTo = String(formData.get("redirect_to") ?? "/");
 
-  const envObj = env as Record<string, unknown>;
-
-  // DEBUG: log what's actually in env
-  console.log(
-    "[Republish DEBUG] env keys:",
-    JSON.stringify(Object.keys(envObj)),
-  );
-  console.log(
-    "[Republish DEBUG] CLOUDFLARE_DEPLOY_HOOK_URL present:",
-    "CLOUDFLARE_DEPLOY_HOOK_URL" in envObj,
-  );
-  console.log(
-    "[Republish DEBUG] CLOUDFLARE_DEPLOY_HOOK_URL type:",
-    typeof envObj.CLOUDFLARE_DEPLOY_HOOK_URL,
-  );
-  console.log(
-    "[Republish DEBUG] SUPABASE_URL present:",
-    "SUPABASE_URL" in envObj,
-  );
-
-  const deployHookUrl = envObj.CLOUDFLARE_DEPLOY_HOOK_URL as string | undefined;
+  // Build-time env (consistent with Supabase pattern in lib/supabase.ts).
+  // Vite replaces this with literal value during build; secret stays in bundle.
+  const deployHookUrl = import.meta.env.CLOUDFLARE_DEPLOY_HOOK_URL;
 
   if (!deployHookUrl) {
     console.error("[Admin] CLOUDFLARE_DEPLOY_HOOK_URL not configured");
     return redirect(
-      `${redirectTo}?error=${encodeURIComponent("Deploy hook URL not configured in Worker secrets")}`,
+      `${redirectTo}?error=${encodeURIComponent("Deploy hook URL not configured in Worker build vars")}`,
       302,
     );
   }
