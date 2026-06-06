@@ -1,7 +1,4 @@
 // apps/admin/src/pages/api/republish.ts
-// POST endpoint that triggers Cloudflare Pages deploy hook (manual republish).
-// Called from the Republish button in AdminLayout header.
-
 import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 
@@ -9,14 +6,33 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   const formData = await request.formData();
   const redirectTo = String(formData.get("redirect_to") ?? "/");
 
-  // Astro v6 + Cloudflare adapter: read runtime env via cloudflare:workers module
-  const deployHookUrl = (env as Record<string, string | undefined>).CLOUDFLARE_DEPLOY_HOOK_URL;
+  const envObj = env as Record<string, unknown>;
+
+  // DEBUG: log what's actually in env
+  console.log(
+    "[Republish DEBUG] env keys:",
+    JSON.stringify(Object.keys(envObj)),
+  );
+  console.log(
+    "[Republish DEBUG] CLOUDFLARE_DEPLOY_HOOK_URL present:",
+    "CLOUDFLARE_DEPLOY_HOOK_URL" in envObj,
+  );
+  console.log(
+    "[Republish DEBUG] CLOUDFLARE_DEPLOY_HOOK_URL type:",
+    typeof envObj.CLOUDFLARE_DEPLOY_HOOK_URL,
+  );
+  console.log(
+    "[Republish DEBUG] SUPABASE_URL present:",
+    "SUPABASE_URL" in envObj,
+  );
+
+  const deployHookUrl = envObj.CLOUDFLARE_DEPLOY_HOOK_URL as string | undefined;
 
   if (!deployHookUrl) {
     console.error("[Admin] CLOUDFLARE_DEPLOY_HOOK_URL not configured");
     return redirect(
       `${redirectTo}?error=${encodeURIComponent("Deploy hook URL not configured in Worker secrets")}`,
-      302
+      302,
     );
   }
 
@@ -28,7 +44,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
       console.error(`[Admin] Deploy hook failed: ${response.status} ${text}`);
       return redirect(
         `${redirectTo}?error=${encodeURIComponent(`Deploy hook returned ${response.status}`)}`,
-        302
+        302,
       );
     }
 
@@ -38,7 +54,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     console.error("[Admin] Deploy hook request error:", errorMsg);
     return redirect(
       `${redirectTo}?error=${encodeURIComponent(`Deploy hook request failed: ${errorMsg}`)}`,
-      302
+      302,
     );
   }
 };
