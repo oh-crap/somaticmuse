@@ -37,7 +37,8 @@ const errorParam = Astro.url.searchParams.get("error");
 const statusMessages: Record<string, string> = {
   created: "Course created successfully",
   updated: "Course updated successfully",
-  deleted: "Course deleted successfully",
+  deleted: "Course deleted",
+  republished: "Republish triggered. Website will update in ~1-2 min.",
 };
 
 const successMessage = statusParam ? statusMessages[statusParam] : null;

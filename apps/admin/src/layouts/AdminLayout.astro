@@ -17,12 +17,20 @@ const { title } = Astro.props;
   </head>
   <body class="min-h-screen text-gray-900">
     <header class="bg-white border-b">
-      <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
         <h1 class="text-lg font-semibold">Somatic Muse — Admin</h1>
-        <nav class="text-sm flex gap-4">
-          <a href="/" class="text-blue-600 hover:underline">Courses</a>
-          <a href="/testimonials" class="text-blue-600 hover:underline">Testimonials</a>
-        </nav>
+        <div class="flex items-center gap-6 text-sm">
+          <nav class="flex gap-4">
+            <a href="/" class="text-blue-600 hover:underline">Courses</a>
+            <a href="/testimonials" class="text-blue-600 hover:underline">Testimonials</a>
+          </nav>
+          <form action="/api/republish" method="POST" class="inline" onsubmit="return confirm('Republish website now? This will trigger a Cloudflare Pages build (~1-2 min).');">
+            <input type="hidden" name="redirect_to" value={Astro.url.pathname} />
+            <button type="submit" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-medium transition-colors">
+              ↻ Republish
+            </button>
+          </form>
+        </div>
       </div>
     </header>
     <main class="max-w-5xl mx-auto px-6 py-8">
