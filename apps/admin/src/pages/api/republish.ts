@@ -3,23 +3,20 @@
 // Called from the Republish button in AdminLayout header.
 
 import type { APIRoute } from "astro";
+import { env } from "cloudflare:workers";
 
-export const POST: APIRoute = async ({ request, redirect, locals }) => {
+export const POST: APIRoute = async ({ request, redirect }) => {
   const formData = await request.formData();
   const redirectTo = String(formData.get("redirect_to") ?? "/");
 
-  // Cloudflare adapter exposes runtime env (including secrets) via locals.runtime
-  const runtime = (locals as { runtime?: { env?: Record<string, string> } })
-    .runtime;
-  const deployHookUrl =
-    runtime?.env?.CLOUDFLARE_DEPLOY_HOOK_URL ??
-    import.meta.env.CLOUDFLARE_DEPLOY_HOOK_URL;
+  // Astro v6 + Cloudflare adapter: read runtime env via cloudflare:workers module
+  const deployHookUrl = (env as Record<string, string | undefined>).CLOUDFLARE_DEPLOY_HOOK_URL;
 
   if (!deployHookUrl) {
     console.error("[Admin] CLOUDFLARE_DEPLOY_HOOK_URL not configured");
     return redirect(
       `${redirectTo}?error=${encodeURIComponent("Deploy hook URL not configured in Worker secrets")}`,
-      302,
+      302
     );
   }
 
@@ -31,7 +28,7 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
       console.error(`[Admin] Deploy hook failed: ${response.status} ${text}`);
       return redirect(
         `${redirectTo}?error=${encodeURIComponent(`Deploy hook returned ${response.status}`)}`,
-        302,
+        302
       );
     }
 
@@ -41,7 +38,7 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
     console.error("[Admin] Deploy hook request error:", errorMsg);
     return redirect(
       `${redirectTo}?error=${encodeURIComponent(`Deploy hook request failed: ${errorMsg}`)}`,
-      302,
+      302
     );
   }
 };
