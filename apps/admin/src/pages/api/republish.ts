@@ -4,11 +4,16 @@
 
 import type { APIRoute } from "astro";
 
-export const POST: APIRoute = async ({ request, redirect }) => {
+export const POST: APIRoute = async ({ request, redirect, locals }) => {
   const formData = await request.formData();
   const redirectTo = String(formData.get("redirect_to") ?? "/");
 
-  const deployHookUrl = import.meta.env.CLOUDFLARE_DEPLOY_HOOK_URL;
+  // Cloudflare adapter exposes runtime env (including secrets) via locals.runtime
+  const runtime = (locals as { runtime?: { env?: Record<string, string> } })
+    .runtime;
+  const deployHookUrl =
+    runtime?.env?.CLOUDFLARE_DEPLOY_HOOK_URL ??
+    import.meta.env.CLOUDFLARE_DEPLOY_HOOK_URL;
 
   if (!deployHookUrl) {
     console.error("[Admin] CLOUDFLARE_DEPLOY_HOOK_URL not configured");
