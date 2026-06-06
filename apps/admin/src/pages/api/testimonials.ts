@@ -65,3 +65,12 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
   return redirect("/testimonials?status=created", 302);
 };
+
+  const statusMessages: Record<string, string> = {
+  created: "Testimonial created successfully",
+  updated: "Testimonial updated successfully",
+  deleted: "Testimonial deleted successfully",
+  republished: "Republish triggered. Website will update in ~1-2 min.",
+
+
+};
