@@ -7,60 +7,144 @@ interface Props {
 
 const { lang } = Astro.props;
 
+interface FaqItem {
+  question: string;
+  answer: string;
+  bullets?: string[];
+  afterBullets?: string;
+}
+
 const content = {
   ro: {
     eyebrow: "Servicii",
-    title: "Cum putem lucra împreună",
-    services: [
+    title: "Executive Reset Flow™",
+    lead: "Somatic Muse NU e pentru toată lumea. E pentru cei care simt o tensiune constantă în corp (gât, umeri, spate) şi nu ştiu cum să detensioneze. Pentru cei care caută ceva mai mult decât o simplă rutină de wellness. Pentru cei cărora le e greu să se oprească mental chiar şi când ar avea timp s-o facă.",
+    faq: [
       {
-        title: "Sesiuni private",
-        description: "Sesiuni 1:1 personalizate, adaptate nevoilor și obiectivelor tale. În persoană sau online.",
+        question: "Lucrăm cu sistemul nervos, nu doar cu mușchii",
+        answer: "Acolo unde multe claselor de yoga se opresc la asane şi la nivel fizic, noi mergem mai departe. Lucrăm direct cu felul în care corpul tău procesează stresul, presiunea și responsabilitatea. Flexibilitatea e bună, însă nu e problema principală. Este faptul că sistemul tău este constant în alertă şi nu te-a ajutat nimeni cu uneltele ca să ieşi de aici.",
       },
       {
-        title: "Cursuri de grup",
-        description: "Practici săptămânale de yoga și mișcare somatică în grupuri mici, în București.",
+        question: "100% adaptat nevoilor tale",
+        answer: "Nu ai nevoie de 60 de minute zilnic şi nici de starea perfectă pentru a începe. Împreună, construim secvenţe scurte pe care să le poţi integra în programul tău existent. Găsim soluţiile care merg pentru tine, pe care să le poţi folosi oricând ai nevoie (înaintea unui call, între şedinţe), nu doar pe saltea.",
       },
       {
-        title: "Workshop-uri & retreaturi",
-        description: "Sesiuni tematice intensive pentru explorarea practicii somatice și a respirației.",
+        question: "Transcedem superficialul",
+        answer: "Nu sunt aici să-ţi spun să respiri ca să treacă. Sunt aici ca să înţelegem de ce nu trece în corp. Te ajut să înţelegi de ce te simţi tensionat, unde se produce blocajul şi cum faci să ieşi din asta.",
       },
-    ],
+      {
+        question: "Nu te scot din ritmul tău, ci te ajut să-l susţii",
+        answer: "Mulţi oameni de succes nu vor să încetinească. Şi nici nu trebuie. Nu sunt aici să te oblig să iei o pauză şi nici să te fac mai calm. Sunt aici să te susţin şi să te stabilizez ca să poţi continua să te bucuri de viaţă şi să performezi în ritmul tău.",
+      },
+      {
+        question: "Ce-mi oferă Executive Reset Flow™?",
+        answer: "Am gândit Executive Reset Flow™ pentru cei care caută:",
+        bullets: [
+          "un reset rapid şi sustenabil al sistemului nervos (în minute, nu ore);",
+          "mai multă claritate sub presiune;",
+          "un corp mai disponibil (fără rigiditate constantă);",
+          "o metodă pe care o poți folosi singur, nu dependență de clasă.",
+        ],
+        afterBullets: "Pe lângă clasele de grup din Bucureşti, lucrez 1:1, în sesiuni personalizate, online sau offline. Fiecare sesiune e construită pe contextul tău real, nu pe un „flow standard”.",
+      },
+    ] as FaqItem[],
+    cta: "Testează dacă funcţionează pentru tine chiar astăzi",
   },
   en: {
     eyebrow: "Services",
-    title: "How we can work together",
-    services: [
+    title: "Executive Reset Flow™",
+    lead: "Somatic Muse is NOT for everybody. It's for those experiencing a constant, inescapable tension in the body (particularly the shoulders, neck, and back). For those looking for more than a mere wellness hack. For those who struggle with shutting off the mental chatter, even when they could afford to.",
+    faq: [
       {
-        title: "Private sessions",
-        description: "Personalized 1:1 sessions adapted to your needs and goals. In person or online.",
+        question: "It goes beyond musclework, into the nervous system",
+        answer: "Unfortunately, many yoga classes today stop at asana, the physical plane. Not us. We work directly with the way your body indexes stress, pressure, responsibility. Flexibility's great and all, but it's not the main issue here. The main issue is your nervous system's constantly on high alert, and no one's helped you figure out the tools to get out of it.",
       },
       {
-        title: "Group classes",
-        description: "Weekly yoga and somatic movement practices in small groups, in Bucharest.",
+        question: "100% adapted to your needs",
+        answer: "You don't need 60 minutes a day, and you don't need the right mood to start. Together, we build short sequences that can be incorporated into your existing routine, without disrupting your schedule. We come up with solutions that truly work for you, and that you can use in any context (a stressful day, between meetings, or even before a call), not just on the mat.",
       },
       {
-        title: "Workshops & retreats",
-        description: "Intensive themed sessions for exploring somatic practice and breathwork.",
+        question: "Transcending the superficial",
+        answer: "I'm not here to tell you to breathe and make it better. I'm here to help you understand why it doesn't get better. Where the tension tends to linger in the body, why you can't seem to ease the pressure, and how to get out of that.",
       },
-    ],
+      {
+        question: "I'm not taking you out of your rhythm; I'm helping maintain it",
+        answer: "Let's be honest, many successful people don't want to slow down. And they shouldn't have to. I'm not here to force you into a break or to make you more zen. Rather, I'm here to support and help stabilize your nervous system so you can keep enjoying (and performing) life at your own pace.",
+      },
+      {
+        question: "Why Executive Reset Flow™?",
+        answer: "I've designed Executive Reset Flow™ for those looking for:",
+        bullets: [
+          "a quick, sustainable nervous system reset (in minutes, not hours);",
+          "more clarity under high pressure;",
+          "a more available body (free of constant rigidity);",
+          "a method you can use by yourself, that doesn't keep you depending on the next class.",
+        ],
+        afterBullets: "Aside from group classes in Bucharest, I also offer personalized 1:1 sessions (offline or online). Each session is built around your actual context, not on a generalized flow.",
+      },
+    ] as FaqItem[],
+    cta: "See if it works for you today",
   },
 };
 
 const t = content[lang];
 ---
 <Section id="services" eyebrow={t.eyebrow} title={t.title} bg="mist">
-  <div class="grid md:grid-cols-3 gap-6">
-    {t.services.map((service) => (
-      <article class="bg-cream rounded-2xl p-8 border border-mist hover:border-terracotta-200 transition-colors">
-        <div class="w-12 h-12 rounded-xl bg-terracotta-100 flex items-center justify-center mb-5">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-terracotta-600">
-            <circle cx="12" cy="12" r="9" />
-            <circle cx="12" cy="12" r="4" />
+
+  <p class="text-lg text-slate-warm leading-relaxed max-w-2xl mx-auto text-center mb-12 italic">
+    {t.lead}
+  </p>
+
+  <div class="space-y-3 max-w-3xl mx-auto">
+    {t.faq.map((item) => (
+      <details data-accordion-item class="group bg-cream rounded-2xl border border-mist hover:border-terracotta-200 transition-colors">
+        <summary class="cursor-pointer list-none p-6 flex items-start justify-between gap-4">
+          <h3 class="font-display text-lg md:text-xl text-ink leading-snug">{item.question}</h3>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mt-1 flex-shrink-0 text-terracotta-600 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
           </svg>
+        </summary>
+        <div class="px-6 pb-6 text-slate-warm leading-relaxed">
+          <p>{item.answer}</p>
+          {item.bullets && (
+            <ul class="list-disc pl-5 mt-3 space-y-1">
+              {item.bullets.map((b) => <li>{b}</li>)}
+            </ul>
+          )}
+          {item.afterBullets && <p class="mt-4">{item.afterBullets}</p>}
         </div>
-        <h3 class="font-display text-xl text-ink mb-3">{service.title}</h3>
-        <p class="text-slate-warm leading-relaxed">{service.description}</p>
-      </article>
+      </details>
     ))}
   </div>
+
+  <div class="mt-12 text-center">
+    <a href="#contact" class="inline-block px-8 py-3 bg-terracotta-600 hover:bg-terracotta-700 text-white rounded-full font-medium transition-colors">
+      {t.cta}
+    </a>
+  </div>
+
 </Section>
+
+<script>
+  // Accordion: when one detail opens, close the others.
+  const items = document.querySelectorAll<HTMLDetailsElement>('details[data-accordion-item]');
+  items.forEach((d) => {
+    d.addEventListener('toggle', () => {
+      if (d.open) {
+        items.forEach((other) => {
+          if (other !== d) other.open = false;
+        });
+      }
+    });
+  });
+</script>
+
+<style>
+  /* Hide default Safari/Chrome marker on summary */
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+  details > summary {
+    list-style: none;
+  }
+</style>
