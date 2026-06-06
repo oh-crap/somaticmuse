@@ -23,24 +23,45 @@ const content = {
     title: "Welcome to Somatic Muse.",
     photoAlt: "Somatic Muse Healing — yoga, journaling and somatic practice",
     paragraphs: [
-      "Hi. I’m Cat. Though I’ve been practicing yoga for over 13 years now, I’m not here to teach you “yoga to relax”.",
-      "I’ve combined yoga techniques, somatic practices, guided journaling, as well as a long love for psychology and created Somatic Muse.",
-      "Somatic Muse is a project for people who’ve never known exactly how to be zen. Those high-functioning, fast-thinking individuals whose nervous system is slowly losing its rhythm. For those of us who’ve gone a little awry and are looking for something more meaningful than a temporary wellness hack. If that sounds like you, then you, my friend, I would like to know better.",
+      "Hi. I'm Cat. Though I've been practicing yoga for over 13 years now, I'm not here to teach you \"yoga to relax\".",
+      "I've combined yoga techniques, somatic practices, guided journaling, as well as a long love for psychology and created Somatic Muse.",
+      "Somatic Muse is a project for people who've never known exactly how to be zen. Those high-functioning, fast-thinking individuals whose nervous system is slowly losing its rhythm. For those of us who've gone a little awry and are looking for something more meaningful than a temporary wellness hack. If that sounds like you, then you, my friend, I would like to know better.",
     ],
   },
 };
 
 const t = content[lang];
+
+// Order matters: index 0 = active (center), 1 = right, 2 = left initially
+const images = [
+  "https://media.somaticmusehealing.com/images/somatic-muse2.jpg",
+  "https://media.somaticmusehealing.com/images/somatic-muse1.jpg",
+  "https://media.somaticmusehealing.com/images/somatic-muse3.jpg",
+];
+
+// Initial position class based on DOM index (matches SSR output to JS expectations)
+const initialPositionClass = (i: number) => {
+  if (i === 0) return "pos-center";
+  if (i === 1) return "pos-right";
+  return "pos-left";
+};
 ---
 <Section id="about" eyebrow={t.eyebrow} title={t.title}>
-  <div class="grid md:grid-cols-2 gap-12 items-center">
+  <div class="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
 
-    <img
-      src="https://media.somaticmusehealing.com/images/somatic-muse2.jpg"
-      alt={t.photoAlt}
-      class="aspect-4/5 w-full rounded-2xl object-cover"
-      loading="lazy"
-    />
+    <div class="relative aspect-4/5 max-w-md mx-auto w-full" data-gallery tabindex="0">
+      {images.map((src, i) => (
+        <button
+          type="button"
+          data-image
+          data-index={i}
+          aria-label={`Photo ${i + 1} of ${images.length}`}
+          class:list={["gallery-image absolute inset-0 rounded-2xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta-500 p-0 border-0 bg-transparent", initialPositionClass(i)]}
+        >
+          <img src={src} alt={t.photoAlt} loading="lazy" class="w-full h-full object-cover" />
+        </button>
+      ))}
+    </div>
 
     <div class="space-y-5 text-lg leading-relaxed">
       {t.paragraphs.map((p) => <p>{p}</p>)}
@@ -48,3 +69,88 @@ const t = content[lang];
 
   </div>
 </Section>
+
+<style>
+  .gallery-image {
+    transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1), opacity 600ms ease;
+    will-change: transform, opacity;
+  }
+  .gallery-image.pos-center {
+    transform: translateX(0) scale(1) rotate(0deg);
+    opacity: 1;
+    z-index: 10;
+    cursor: default;
+  }
+  .gallery-image.pos-left {
+    transform: translateX(-35%) scale(0.85) rotate(-3deg);
+    opacity: 0.55;
+    z-index: 1;
+    cursor: pointer;
+  }
+  .gallery-image.pos-right {
+    transform: translateX(35%) scale(0.85) rotate(3deg);
+    opacity: 0.55;
+    z-index: 1;
+    cursor: pointer;
+  }
+  .gallery-image.pos-left:hover,
+  .gallery-image.pos-right:hover {
+    opacity: 0.85;
+  }
+</style>
+
+<script>
+  class CardStackCarousel {
+    root: HTMLElement;
+    images: HTMLButtonElement[];
+    activeIndex: number;
+
+    constructor(root: HTMLElement) {
+      this.root = root;
+      this.images = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-image]'));
+      this.activeIndex = 0;
+      this.updatePositions();
+
+      this.images.forEach((btn, i) => {
+        btn.addEventListener('click', () => this.setActive(i));
+      });
+
+      this.root.addEventListener('keydown', (e: KeyboardEvent) => {
+        const total = this.images.length;
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          this.setActive((this.activeIndex - 1 + total) % total);
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          this.setActive((this.activeIndex + 1) % total);
+        }
+      });
+    }
+
+    setActive(index: number) {
+      if (index === this.activeIndex) return;
+      this.activeIndex = index;
+      this.updatePositions();
+    }
+
+    updatePositions() {
+      const total = this.images.length;
+      this.images.forEach((img, i) => {
+        const position = (i - this.activeIndex + total) % total;
+        img.classList.remove('pos-center', 'pos-left', 'pos-right');
+        if (position === 0) {
+          img.classList.add('pos-center');
+        } else if (position === 1) {
+          img.classList.add('pos-right');
+        } else {
+          img.classList.add('pos-left');
+        }
+      });
+    }
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-gallery]').forEach((root) => {
+    new CardStackCarousel(root);
+  });
+</script>
