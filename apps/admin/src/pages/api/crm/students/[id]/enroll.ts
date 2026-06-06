@@ -1,105 +1,93 @@
-// apps/admin/src/pages/api/crm/students/[id].ts
-// PATCH endpoint — partial update of student fields (autosave).
-// Accepts JSON body with any subset of editable fields.
+// apps/admin/src/pages/api/crm/students/[id]/enroll.ts
+// POST endpoint — enroll student in a course.
+// Also auto-creates/updates tags (yoga_style, studio, format)
+// and student_tags with last_seen_at.
 
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../../../lib/supabase";
-import type { StudentUpdate } from "@somaticmuse/shared";
+import type { TagType } from "@somaticmuse/shared";
 
-/** Fields that the client is allowed to PATCH. */
-const ALLOWED_FIELDS = new Set([
-  "first_name",
-  "last_name",
-  "photo_url",
-  "email",
-  "phone",
-  "facebook_url",
-  "instagram_url",
-  "notes_health",
-  "notes_family",
-  "notes_hobbies",
-  "notes_other",
-]);
-
-export const PATCH: APIRoute = async ({ params, request }) => {
-  const id = params.id;
-  if (!id) {
-    return new Response(JSON.stringify({ error: "Missing student ID" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+export const POST: APIRoute = async ({ params, request, redirect }) => {
+  const studentId = params.id;
+  if (!studentId) {
+    return redirect("/crm?error=Missing+student+ID", 302);
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+  const formData = await request.formData();
+  const courseId = String(formData.get("course_id") ?? "").trim();
+
+  if (!courseId) {
+    return redirect(`/crm/students/${studentId}?error=Missing+course+ID`, 302);
   }
 
-  // Filter to allowed fields only
-  const updateData: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(body)) {
-    if (ALLOWED_FIELDS.has(key)) {
-      // Normalize empty strings to null for optional fields
-      updateData[key] =
-        typeof value === "string" && value.trim() === "" ? null : value;
+  // 1. Fetch the course to get tag-relevant fields
+  const { data: course, error: courseError } = await supabaseAdmin
+    .from("courses")
+    .select("id, yoga_style, studio_name, format, start_at")
+    .eq("id", courseId)
+    .single();
+
+  if (courseError || !course) {
+    const msg = encodeURIComponent(courseError?.message ?? "Course not found");
+    return redirect(`/crm/students/${studentId}?error=${msg}`, 302);
+  }
+
+  // 2. Insert enrollment (ignore duplicate — UNIQUE constraint)
+  const { error: enrollError } = await supabaseAdmin
+    .from("course_students")
+    .upsert(
+      { course_id: courseId, student_id: studentId },
+      { onConflict: "course_id,student_id", ignoreDuplicates: true },
+    );
+
+  if (enrollError) {
+    console.error("[CRM] Enroll failed:", enrollError.message);
+    const msg = encodeURIComponent(`Enrollment error: ${enrollError.message}`);
+    return redirect(`/crm/students/${studentId}?error=${msg}`, 302);
+  }
+
+  // 3. Auto-create/update tags and student_tags
+  const tagEntries: { type: TagType; value: string }[] = [
+    { type: "yoga_style", value: course.yoga_style },
+    { type: "studio", value: course.studio_name },
+    { type: "format", value: course.format },
+  ];
+
+  for (const entry of tagEntries) {
+    // Upsert tag (creates if new, returns existing)
+    const { data: tag, error: tagError } = await supabaseAdmin
+      .from("tags")
+      .upsert(
+        { type: entry.type, value: entry.value },
+        { onConflict: "type,value", ignoreDuplicates: false },
+      )
+      .select("id, color")
+      .single();
+
+    if (tagError || !tag) {
+      console.error("[CRM] Tag upsert failed:", tagError?.message, entry);
+      continue;
+    }
+
+    // If tag still has default color, auto-assign from palette
+    if (tag.color === "#6B7280") {
+      await supabaseAdmin.rpc("assign_tag_color", { p_tag_id: tag.id });
+    }
+
+    // Upsert student_tag — update last_seen_at if course is more recent
+    const { error: stError } = await supabaseAdmin.from("student_tags").upsert(
+      {
+        student_id: studentId,
+        tag_id: tag.id,
+        last_seen_at: course.start_at,
+      },
+      { onConflict: "student_id,tag_id" },
+    );
+
+    if (stError) {
+      console.error("[CRM] student_tag upsert failed:", stError.message);
     }
   }
 
-  if (Object.keys(updateData).length === 0) {
-    return new Response(
-      JSON.stringify({ error: "No valid fields to update" }),
-      {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
-
-  // Validate required fields if they are being updated
-  if ("first_name" in updateData && !updateData.first_name) {
-    return new Response(
-      JSON.stringify({ error: "First name cannot be empty" }),
-      {
-        status: 422,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
-  if ("last_name" in updateData && !updateData.last_name) {
-    return new Response(
-      JSON.stringify({ error: "Last name cannot be empty" }),
-      {
-        status: 422,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from("students")
-    .update(updateData as StudentUpdate)
-    .eq("id", id)
-    .select("updated_at")
-    .single();
-
-  if (error) {
-    console.error("[CRM] Student update failed:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  return new Response(
-    JSON.stringify({ ok: true, updated_at: data.updated_at }),
-    {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    },
-  );
+  return redirect(`/crm/students/${studentId}?status=enrolled`, 302);
 };

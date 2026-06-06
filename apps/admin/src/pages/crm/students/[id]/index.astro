@@ -234,20 +234,32 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
             placeholder="—"
           />
         </div>
-        <div>
+        <div data-link-field="facebook_url">
           <label class="block text-[11px] text-gray-400 uppercase tracking-wider mb-0.5">Facebook</label>
+          {student.facebook_url ? (
+            <div class="flex items-center gap-1 link-display">
+              <a href={student.facebook_url} target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline truncate flex-1">{student.facebook_url.replace(/https?:\/\/(www\.)?/, '')}</a>
+              <button type="button" class="edit-toggle text-gray-400 hover:text-gray-600 shrink-0" title="Edit">✏️</button>
+            </div>
+          ) : null}
           <input
             type="url" data-field="facebook_url" value={student.facebook_url ?? ""}
-            class="w-full border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 text-sm transition-colors truncate"
-            placeholder="—"
+            class:list={["w-full border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 text-sm transition-colors truncate link-input", student.facebook_url && "hidden"]}
+            placeholder="https://facebook.com/..."
           />
         </div>
-        <div>
+        <div data-link-field="instagram_url">
           <label class="block text-[11px] text-gray-400 uppercase tracking-wider mb-0.5">Instagram</label>
+          {student.instagram_url ? (
+            <div class="flex items-center gap-1 link-display">
+              <a href={student.instagram_url} target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline truncate flex-1">{student.instagram_url.replace(/https?:\/\/(www\.)?/, '')}</a>
+              <button type="button" class="edit-toggle text-gray-400 hover:text-gray-600 shrink-0" title="Edit">✏️</button>
+            </div>
+          ) : null}
           <input
             type="url" data-field="instagram_url" value={student.instagram_url ?? ""}
-            class="w-full border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 text-sm transition-colors truncate"
-            placeholder="—"
+            class:list={["w-full border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent px-0 py-0.5 text-sm transition-colors truncate link-input", student.instagram_url && "hidden"]}
+            placeholder="https://instagram.com/..."
           />
         </div>
       </div>
@@ -414,7 +426,13 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
           </button>
         </form>
         {student.holiday_until && (
-          <p class="text-[11px] text-amber-600">On holiday until {student.holiday_until}</p>
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-[11px] text-amber-600">On holiday until {student.holiday_until}</p>
+            <form action={`/api/crm/students/${id}/holiday`} method="POST" class="shrink-0">
+              <input type="hidden" name="holiday_until" value="" />
+              <button type="submit" class="text-[11px] text-red-500 hover:text-red-700 transition-colors">Cancel</button>
+            </form>
+          </div>
         )}
 
         {/* Deactivate / Reactivate */}
@@ -549,5 +567,19 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
         }
       });
     }
+
+// Link field edit toggle (FB, Instagram)
+    document.querySelectorAll("[data-link-field]").forEach((wrapper) => {
+      const display = wrapper.querySelector(".link-display");
+      const input = wrapper.querySelector(".link-input");
+      const toggle = wrapper.querySelector(".edit-toggle");
+      if (toggle && display && input) {
+        toggle.addEventListener("click", () => {
+          display.classList.add("hidden");
+          input.classList.remove("hidden");
+          input.focus();
+        });
+      }
+    });
     
 </script>
