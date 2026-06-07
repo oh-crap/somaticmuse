@@ -94,10 +94,12 @@ const studioColorMap: Record<string, string> = {};
 // -----------------------------------------------------------------
 const enrolledCourseIds = new Set(allCourses.map(c => c.id));
 
+const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
 const { data: availableCoursesRaw } = await supabaseAdmin
   .from("courses")
   .select("id, title, yoga_style, format, start_at, studio_name")
-  .gt("start_at", now.toISOString())
+  .gt("start_at", twoDaysAgo)
   .order("start_at", { ascending: true });
 
 const availableCourses = (availableCoursesRaw ?? [])
@@ -213,6 +215,14 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
               {tag.value}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Stats */}
+      {pastCourses.length > 0 && (
+        <div class="text-xs text-gray-500 space-y-0.5">
+          <div>First lesson: {formatDateShort(pastCourses[0].start_at)}</div>
+          <div>Lessons attended: {pastCourses.length}</div>
         </div>
       )}
 
@@ -376,11 +386,14 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
           <form action={`/api/crm/students/${id}/enroll`} method="POST" class="flex gap-1">
             <select name="course_id" required class="flex-1 min-w-0 px-2 py-2 border rounded text-xs bg-white">
               <option value="">Enroll in…</option>
-              {availableCourses.map((c: any) => (
-                <option value={c.id}>
-                  {c.title} — {formatDateShort(c.start_at)}
-                </option>
-              ))}
+              {availableCourses.map((c: any) => {
+                const isPastCourse = new Date(c.start_at) < now;
+                return (
+                  <option value={c.id}>
+                    {isPastCourse ? "↩ " : ""}{c.title} — {formatDateShort(c.start_at)}
+                  </option>
+                );
+              })}
             </select>
             <button type="submit" class="px-3 py-2 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors shrink-0">
               +
