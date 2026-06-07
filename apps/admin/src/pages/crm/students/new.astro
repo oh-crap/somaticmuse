@@ -5,6 +5,7 @@
 import AdminLayout from "../../../layouts/AdminLayout.astro";
 
 const errorParam = Astro.url.searchParams.get("error");
+const courseId = Astro.url.searchParams.get("course_id") ?? "";
 ---
 <AdminLayout title="Add student">
   <div class="mb-6">
@@ -19,8 +20,14 @@ const errorParam = Astro.url.searchParams.get("error");
     </div>
   )}
 
-  <form action="/api/crm/students" method="POST" class="space-y-5 max-w-2xl">
+  {courseId && (
+    <div class="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded mb-4 text-sm">
+      Student will be automatically enrolled in the selected course after creation.
+    </div>
+  )}
 
+  <form action="/api/crm/students" method="POST" class="space-y-5 max-w-2xl">
+    {courseId && <input type="hidden" name="course_id" value={courseId} />}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label for="first_name" class="block text-sm font-medium mb-1">First name *</label>

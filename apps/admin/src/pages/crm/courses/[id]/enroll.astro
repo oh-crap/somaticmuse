@@ -1,0 +1,177 @@
+---
+// apps/admin/src/pages/crm/courses/[id]/enroll.astro
+// Search and enroll existing students into a specific course.
+
+import AdminLayout from "../../../../layouts/AdminLayout.astro";
+import { supabaseAdmin } from "../../../../lib/supabase";
+import type { Student } from "@somaticmuse/shared";
+
+const courseId = Astro.params.id;
+if (!courseId) return Astro.redirect("/crm?error=Missing+course+ID");
+
+// Fetch course info
+const { data: course, error: courseError } = await supabaseAdmin
+  .from("courses")
+  .select("id, title, yoga_style, format, start_at, studio_name")
+  .eq("id", courseId)
+  .single();
+
+if (courseError || !course) {
+  return Astro.redirect("/crm?error=Course+not+found");
+}
+
+// Already enrolled student IDs
+const { data: enrolledRaw } = await supabaseAdmin
+  .from("course_students")
+  .select("student_id")
+  .eq("course_id", courseId);
+
+const enrolledIds = new Set((enrolledRaw ?? []).map((r: any) => r.student_id));
+
+// Search query
+const query = Astro.url.searchParams.get("q")?.trim() ?? "";
+
+type StudentRow = Pick<Student, "id" | "first_name" | "last_name" | "photo_url" | "active">;
+
+let searchResults: StudentRow[] = [];
+let searchError: string | null = null;
+
+if (query.length > 0) {
+  const words = query.split(/\s+/).filter(Boolean);
+
+  let dbQuery = supabaseAdmin
+    .from("students")
+    .select("id, first_name, last_name, photo_url, active")
+    .eq("active", true);
+
+  if (words.length === 1) {
+    const pattern = `%${words[0]}%`;
+    dbQuery = dbQuery.or(`first_name.ilike.${pattern},last_name.ilike.${pattern}`);
+  } else {
+    const w1 = `%${words[0]}%`;
+    const w2 = `%${words.slice(1).join(" ")}%`;
+    dbQuery = dbQuery.or(
+      `and(first_name.ilike.${w1},last_name.ilike.${w2}),and(first_name.ilike.${w2},last_name.ilike.${w1})`
+    );
+  }
+
+  const { data, error } = await dbQuery
+    .order("last_name")
+    .order("first_name")
+    .limit(30)
+    .returns<StudentRow[]>();
+
+  if (error) searchError = error.message;
+  searchResults = data ?? [];
+}
+
+// Status messages
+const statusParam = Astro.url.searchParams.get("status");
+const errorParam = Astro.url.searchParams.get("error");
+
+const formatDT = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    weekday: "short", day: "2-digit", month: "short",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: "Europe/Bucharest",
+  }).format(new Date(iso));
+
+const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
+---
+<AdminLayout title={`Enroll students — ${course.title}`}>
+  <div class="mb-6">
+    <a href="/crm" class="text-sm text-blue-600 hover:underline">← Back to CRM</a>
+    <h2 class="text-2xl font-semibold mt-1">Enroll students</h2>
+    <div class="mt-1 text-sm text-gray-500">
+      <span class="font-medium text-gray-700">{course.title}</span>
+      <span> · {formatDT(course.start_at)} · {course.studio_name}</span>
+    </div>
+  </div>
+
+  {statusParam === "enrolled" && (
+    <div class="bg-green-50 border border-green-200 text-green-700 p-3 rounded mb-4 text-sm">Student enrolled.</div>
+  )}
+  {errorParam && (
+    <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">
+      <strong>Error:</strong> {decodeURIComponent(errorParam)}
+    </div>
+  )}
+
+  {/* Search */}
+  <form method="GET" class="mb-6 max-w-xl">
+    <div class="flex gap-2">
+      <input
+        type="text" name="q" value={query} autofocus
+        placeholder="Search students by name…"
+        class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm">
+        Search
+      </button>
+    </div>
+  </form>
+
+  {/* Quick link to create + enroll */}
+  <div class="mb-6">
+    <a
+      href={`/crm/students/new?course_id=${courseId}`}
+      class="text-sm text-blue-600 hover:underline"
+    >
+      + Create new student and enroll in this course
+    </a>
+  </div>
+
+  {searchError && (
+    <div class="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">Error: {searchError}</div>
+  )}
+
+  {/* Results */}
+  {query.length > 0 && !searchError && (
+    <div>
+      <p class="text-sm text-gray-500 mb-3">
+        {searchResults.length === 0
+          ? `No students found for "${query}".`
+          : `${searchResults.length} result${searchResults.length === 1 ? "" : "s"}`}
+      </p>
+
+      {searchResults.length > 0 && (
+        <div class="bg-white border rounded-lg divide-y">
+          {searchResults.map(s => {
+            const alreadyEnrolled = enrolledIds.has(s.id);
+            return (
+              <div class="flex items-center gap-3 px-4 py-3">
+                {s.photo_url ? (
+                  <img src={s.photo_url} alt="" class="w-9 h-9 rounded-full object-cover shrink-0" />
+                ) : (
+                  <span class="w-9 h-9 rounded-full bg-gray-200 text-gray-600 text-xs font-medium flex items-center justify-center shrink-0">
+                    {initials(s.first_name, s.last_name)}
+                  </span>
+                )}
+
+                <div class="min-w-0 flex-1">
+                  <div class="text-sm font-medium text-gray-900">{s.first_name} {s.last_name}</div>
+                </div>
+
+                {alreadyEnrolled ? (
+                  <span class="text-xs text-green-600 font-medium px-3 py-1.5">✓ Enrolled</span>
+                ) : (
+                  <form action={`/api/crm/courses/${courseId}/enroll`} method="POST">
+                    <input type="hidden" name="student_id" value={s.id} />
+                    <input type="hidden" name="redirect_to" value={`/crm/courses/${courseId}/enroll?q=${encodeURIComponent(query)}&status=enrolled`} />
+                    <button type="submit" class="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors">
+                      Enroll
+                    </button>
+                  </form>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  )}
+
+  {query.length === 0 && (
+    <p class="text-sm text-gray-400">Type a name to search for students to enroll.</p>
+  )}
+</AdminLayout>
