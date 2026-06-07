@@ -131,6 +131,7 @@ const errorParam = Astro.url.searchParams.get("error");
 const statusMessages: Record<string, string> = {
   created: "Student created",
   enrolled: "Enrolled in course",
+  unenrolled: "Student unenrolled from course",
   holiday_set: "Holiday updated",
   deactivated: "Student deactivated",
   reactivated: "Student reactivated",
@@ -335,7 +336,7 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
               const color = studioColorMap[c.studio_name] ?? "#6B7280";
               return (
                 <div
-                  class="flex items-start gap-2 px-2.5 py-1.5 rounded text-xs border-l-[3px]"
+                  class="flex items-start gap-2 px-2.5 py-1.5 rounded text-xs border-l-[3px] group"
                   style={`border-left-color: ${color}; background-color: ${color}11`}
                 >
                   <div class="min-w-0 flex-1">
@@ -345,6 +346,15 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
                   <span class="shrink-0 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
                     upcoming
                   </span>
+                  <form
+                    action={`/api/crm/students/${id}/unenroll`}
+                    method="POST"
+                    class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onsubmit={`return confirm('Unenroll from "${c.title}"?')`}
+                  >
+                    <input type="hidden" name="course_id" value={c.id} />
+                    <button type="submit" class="text-red-400 hover:text-red-600 text-sm leading-none" title="Unenroll">✕</button>
+                  </form>
                 </div>
               );
             })}
@@ -354,13 +364,22 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
               const color = studioColorMap[c.studio_name] ?? "#6B7280";
               return (
                 <div
-                  class="flex items-start gap-2 px-2.5 py-1.5 rounded text-xs border-l-[3px] opacity-70"
+                  class="flex items-start gap-2 px-2.5 py-1.5 rounded text-xs border-l-[3px] opacity-70 group"
                   style={`border-left-color: ${color}; background-color: ${color}08`}
                 >
                   <div class="min-w-0 flex-1">
                     <div class="font-medium text-gray-600 truncate">{c.title}</div>
                     <div class="text-gray-400">{formatDateShort(c.start_at)}</div>
                   </div>
+                  <form
+                    action={`/api/crm/students/${id}/unenroll`}
+                    method="POST"
+                    class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onsubmit={`return confirm('Remove "${c.title}" from history?')`}
+                  >
+                    <input type="hidden" name="course_id" value={c.id} />
+                    <button type="submit" class="text-red-400 hover:text-red-600 text-sm leading-none" title="Unenroll">✕</button>
+                  </form>
                 </div>
               );
             })}
