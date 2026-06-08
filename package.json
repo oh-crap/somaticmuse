@@ -1,5 +1,6 @@
 {
   "name": "somaticmuse",
+  "packageManager": "pnpm@9.15.0",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -12,5 +13,9 @@
     "dev:admin": "pnpm --filter @somaticmuse/admin dev",
     "build:admin": "pnpm --filter @somaticmuse/admin build",
     "preview:admin": "pnpm --filter @somaticmuse/admin preview"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.8",
+    "vitest": "^4.1.8"
   }
 }
