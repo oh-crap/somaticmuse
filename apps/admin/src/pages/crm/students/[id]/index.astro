@@ -573,13 +573,17 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
       });
     }
 
-    // Flush before unload
+    // Flush pending changes when the tab is closing.
+    // Uses fetch with keepalive instead of sendBeacon because sendBeacon
+    // only supports POST, but our endpoint accepts PATCH.
     window.addEventListener("beforeunload", () => {
-      if (Object.keys(pendingFields).length > 0) {
-        // Use sendBeacon for reliability
-        const blob = new Blob([JSON.stringify(pendingFields)], { type: "application/json" });
-        navigator.sendBeacon(ENDPOINT + "?_method=PATCH", blob);
-      }
+      if (Object.keys(pendingFields).length === 0) return;
+      fetch(ENDPOINT, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pendingFields),
+        keepalive: true,
+      });
     });
   })();
 
