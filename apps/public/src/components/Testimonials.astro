@@ -3,6 +3,12 @@
 // Testimonials carousel — SSG build-time fetch from Supabase.
 // RLS limits anon SELECT to visible records only.
 // If no testimonials, section is hidden completely.
+//
+// Accessibility:
+//   - Visible pause/play control (WCAG 2.2.2 — auto-updating content >5s)
+//   - Stops on focus (keyboard users)
+//   - Stops on hover (mouse users)
+//   - Starts paused if user prefers reduced motion
 
 import Section from "./Section.astro";
 import { supabase } from "../lib/supabase";
@@ -88,10 +94,22 @@ const getInitials = (name: string) => {
       </div>
 
       {testimonials.length > 1 && (
-        <div data-dots class="flex justify-center gap-2 mt-8">
-          {testimonials.map((_, i) => (
-            <button data-dot aria-label={`Go to testimonial ${i + 1}`} class={`w-2 h-2 rounded-full transition-colors ${i === 0 ? "bg-terracotta-600" : "bg-terracotta-200"}`}></button>
-          ))}
+        <div class="flex items-center justify-center gap-4 mt-8">
+          <div data-dots class="flex gap-2">
+            {testimonials.map((_, i) => (
+              <button data-dot aria-label={`Go to testimonial ${i + 1}`} class={`w-2 h-2 rounded-full transition-colors ${i === 0 ? "bg-terracotta-600" : "bg-terracotta-200"}`}></button>
+            ))}
+          </div>
+          <button
+            data-pause-toggle
+            type="button"
+            aria-label="Pause auto-rotation"
+            aria-pressed="false"
+            class="w-7 h-7 rounded-full bg-white shadow-sm flex items-center justify-center text-terracotta-600 hover:bg-terracotta-50 transition-colors text-xs ml-2"
+            title="Pause / play"
+          >
+            ⏸
+          </button>
         </div>
       )}
     </div>
@@ -105,10 +123,13 @@ const getInitials = (name: string) => {
     dots: NodeListOf<HTMLElement>;
     prevBtn: HTMLElement | null;
     nextBtn: HTMLElement | null;
+    pauseBtn: HTMLElement | null;
     current: number;
     total: number;
     autoRotateInterval: number | null;
     autoRotateDelay: number;
+    isPaused: boolean;
+    prefersReducedMotion: boolean;
 
     constructor(root: HTMLElement) {
       this.root = root;
@@ -116,10 +137,13 @@ const getInitials = (name: string) => {
       this.dots = root.querySelectorAll<HTMLElement>('[data-dot]');
       this.prevBtn = root.querySelector<HTMLElement>('[data-prev]');
       this.nextBtn = root.querySelector<HTMLElement>('[data-next]');
+      this.pauseBtn = root.querySelector<HTMLElement>('[data-pause-toggle]');
       this.current = 0;
       this.total = this.slides.length;
       this.autoRotateInterval = null;
       this.autoRotateDelay = 7000;
+      this.isPaused = false;
+      this.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.init();
     }
 
@@ -131,15 +155,32 @@ const getInitials = (name: string) => {
       this.dots.forEach((dot: HTMLElement, i: number) => {
         dot.addEventListener('click', () => this.showSlide(i));
       });
+      this.pauseBtn?.addEventListener('click', () => this.togglePause());
 
-      this.startAutoRotate();
+      // Mouse: stop on hover, resume on leave (unless user paused explicitly)
       this.root.addEventListener('mouseenter', () => this.stopAutoRotate());
-      this.root.addEventListener('mouseleave', () => this.startAutoRotate());
+      this.root.addEventListener('mouseleave', () => {
+        if (!this.isPaused) this.startAutoRotate();
+      });
+
+      // Keyboard focus: stop on focus, resume on blur (unless paused)
+      this.root.addEventListener('focusin', () => this.stopAutoRotate());
+      this.root.addEventListener('focusout', () => {
+        if (!this.isPaused) this.startAutoRotate();
+      });
 
       this.root.addEventListener('keydown', (e: KeyboardEvent) => {
         if (e.key === 'ArrowLeft') this.prev();
         if (e.key === 'ArrowRight') this.next();
       });
+
+      // Honor user motion preferences — start paused
+      if (this.prefersReducedMotion) {
+        this.isPaused = true;
+        this.updatePauseButton();
+      } else {
+        this.startAutoRotate();
+      }
     }
 
     showSlide(index: number) {
@@ -162,6 +203,7 @@ const getInitials = (name: string) => {
     next() { this.showSlide(this.current + 1); }
 
     startAutoRotate() {
+      if (this.isPaused) return;
       this.stopAutoRotate();
       this.autoRotateInterval = window.setInterval(() => this.next(), this.autoRotateDelay);
     }
@@ -171,6 +213,23 @@ const getInitials = (name: string) => {
         window.clearInterval(this.autoRotateInterval);
         this.autoRotateInterval = null;
       }
+    }
+
+    togglePause() {
+      this.isPaused = !this.isPaused;
+      if (this.isPaused) {
+        this.stopAutoRotate();
+      } else {
+        this.startAutoRotate();
+      }
+      this.updatePauseButton();
+    }
+
+    updatePauseButton() {
+      if (!this.pauseBtn) return;
+      this.pauseBtn.setAttribute('aria-pressed', this.isPaused ? 'true' : 'false');
+      this.pauseBtn.setAttribute('aria-label', this.isPaused ? 'Resume auto-rotation' : 'Pause auto-rotation');
+      this.pauseBtn.textContent = this.isPaused ? '▶' : '⏸';
     }
   }
 
