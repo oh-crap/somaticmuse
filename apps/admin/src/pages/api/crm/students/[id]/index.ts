@@ -40,7 +40,7 @@ export const PATCH: APIRoute = async ({ params, request }) => {
     });
   }
 
-  // Filter to allowed fields only
+// Filter to allowed fields only
   const updateData: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(body)) {
     if (ALLOWED_FIELDS.has(key)) {
@@ -56,18 +56,55 @@ export const PATCH: APIRoute = async ({ params, request }) => {
     });
   }
 
-  // Validate required fields if they are being updated
+  // ---- Validation (mirrors POST /api/crm/students) ----
+  const validationErrors: string[] = [];
+
   if ("first_name" in updateData && !updateData.first_name) {
-    return new Response(JSON.stringify({ error: "First name cannot be empty" }), {
-      status: 422,
-      headers: { "Content-Type": "application/json" },
-    });
+    validationErrors.push("First name cannot be empty");
   }
   if ("last_name" in updateData && !updateData.last_name) {
-    return new Response(JSON.stringify({ error: "Last name cannot be empty" }), {
-      status: 422,
-      headers: { "Content-Type": "application/json" },
-    });
+    validationErrors.push("Last name cannot be empty");
+  }
+
+  // Email: optional, but if present must match the same loose regex as POST.
+  if (
+    "email" in updateData &&
+    updateData.email !== null &&
+    typeof updateData.email === "string" &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updateData.email)
+  ) {
+    validationErrors.push("Invalid email format");
+  }
+
+  // URL fields: optional, but if present must parse as a valid URL.
+  // Also reject non-http(s) schemes to prevent javascript: and similar.
+  const urlFields = ["photo_url", "facebook_url", "instagram_url"] as const;
+  for (const field of urlFields) {
+    if (field in updateData && updateData[field] !== null) {
+      const raw = updateData[field];
+      if (typeof raw !== "string") {
+        validationErrors.push(`${field} must be a string`);
+        continue;
+      }
+      try {
+        const parsed = new URL(raw);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          validationErrors.push(`${field} must use http or https`);
+        }
+      } catch {
+        validationErrors.push(`${field} is not a valid URL`);
+      }
+    }
+  }
+
+  if (validationErrors.length > 0) {
+    return new Response(
+      JSON.stringify({ error: validationErrors.join("; ") }),
+      {
+        status: 422,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   const { data, error } = await supabaseAdmin
