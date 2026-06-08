@@ -23,6 +23,18 @@ function getBucharestOffset(year: number, month: number, day: number): number {
 /**
  * Parse datetime-local input "YYYY-MM-DDTHH:MM" as Bucharest TZ
  * and return ISO UTC string.
+ *
+ * KNOWN LIMITATION — DST transition days:
+ * On the two days per year when Bucharest changes between EET (UTC+2)
+ * and EEST (UTC+3), times in the 02:00-04:00 local window are either
+ * non-existent (spring forward, last Sunday of March) or ambiguous
+ * (fall back, last Sunday of October). This function uses a fixed
+ * per-day offset and will silently shift such inputs by one hour.
+ *
+ * Accepted as a known limitation because yoga courses are not scheduled
+ * in the small hours. Fix would require a round-trip validation (see
+ * git history for the discussion) or a tz-aware library (Temporal,
+ * date-fns-tz).
  */
 export function parseBucharestDateTime(input: string): string {
   if (!input) return "";
@@ -40,7 +52,9 @@ export function parseBucharestDateTime(input: string): string {
   const minute = Number(mi);
 
   const offset = getBucharestOffset(year, month, day);
-  const utcDate = new Date(Date.UTC(year, month - 1, day, hour - offset, minute));
+  const utcDate = new Date(
+    Date.UTC(year, month - 1, day, hour - offset, minute),
+  );
 
   return utcDate.toISOString();
 }
