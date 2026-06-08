@@ -9,3 +9,20 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+
+declare namespace App {
+  interface Locals {
+    // Email of the authenticated user, set by middleware after JWT verification
+    userEmail: string;
+  }
+}
+
+/// <reference path="../.astro/types.d.ts" />
+
+declare namespace App {
+  interface Locals {
+    // Email of the authenticated user, set by middleware after JWT verification
+    userEmail: string;
+  }
+}
