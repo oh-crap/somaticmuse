@@ -42,7 +42,19 @@ let searchResults: StudentRow[] = [];
 let searchError: string | null = null;
 
 if (query.length > 0) {
-  const words = query.split(/\s+/).filter(Boolean);
+  // Escape ILIKE special characters so user input is treated literally.
+  // Order matters: backslash first, then % and _.
+  const escapeIlike = (s: string) =>
+    s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+
+  // Also escape characters that would break the Supabase .or() filter
+  // parser (commas, parentheses, quotes).
+  const escapeOrParser = (s: string) =>
+    s.replace(/[,()'"]/g, "");
+
+  const sanitize = (s: string) => escapeOrParser(escapeIlike(s));
+
+  const words = query.split(/\s+/).filter(Boolean).map(sanitize);
 
   let dbQuery = supabaseAdmin
     .from("students")
@@ -51,12 +63,14 @@ if (query.length > 0) {
 
   if (words.length === 1) {
     const pattern = `%${words[0]}%`;
-    dbQuery = dbQuery.or(`first_name.ilike.${pattern},last_name.ilike.${pattern}`);
+    dbQuery = dbQuery.or(
+      `first_name.ilike.${pattern},last_name.ilike.${pattern}`,
+    );
   } else {
     const w1 = `%${words[0]}%`;
     const w2 = `%${words.slice(1).join(" ")}%`;
     dbQuery = dbQuery.or(
-      `and(first_name.ilike.${w1},last_name.ilike.${w2}),and(first_name.ilike.${w2},last_name.ilike.${w1})`
+      `and(first_name.ilike.${w1},last_name.ilike.${w2}),and(first_name.ilike.${w2},last_name.ilike.${w1})`,
     );
   }
 
