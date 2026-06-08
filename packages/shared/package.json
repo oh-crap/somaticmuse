@@ -8,5 +8,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2"
+  },
+    "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   }
 }

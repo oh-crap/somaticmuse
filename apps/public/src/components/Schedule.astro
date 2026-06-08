@@ -1,6 +1,7 @@
 ---
 import Section from "./Section.astro";
 import { supabase, type Course } from "../lib/supabase";
+import { filterUpcomingCourses, formatCourseDate, formatCourseTimeRange } from "@somaticmuse/shared";
 
 interface Props {
   lang: "ro" | "en";
@@ -12,7 +13,8 @@ const { lang } = Astro.props;
 // Fetch courses from Supabase (build-time, SSG)
 // -------------------------------------------------------------------
 // Coarse filter: courses ending in the last 24h or later
-// Fine filter applied below in JS (midnight of day course took place)
+// Fine filter (keep until midnight of course day) lives in
+// @somaticmuse/shared → filterUpcomingCourses.
 const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
 const { data, error } = await supabase
@@ -26,13 +28,7 @@ if (error) {
   console.error("[Schedule] Supabase fetch failed:", error.message);
 }
 
-// Fine filter: keep course until midnight of day it took place
-const now = new Date();
-const upcomingCourses = (data ?? []).filter((c) => {
-  const end = new Date(c.end_at);
-  const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
-  return endOfDay > now;
-});
+const upcomingCourses = filterUpcomingCourses(data ?? []);
 
 // -------------------------------------------------------------------
 // i18n
@@ -48,7 +44,7 @@ const content = {
       individual: "Individual",
       group: "Grup",
     },
-    locale: "ro-RO",
+    locale: "ro-RO" as const,
   },
   en: {
     eyebrow: "Schedule",
@@ -60,29 +56,11 @@ const content = {
       individual: "Individual",
       group: "Group",
     },
-    locale: "en-US",
+    locale: "en-US" as const,
   },
 };
 
 const t = content[lang];
-
-const formatDate = (isoString: string) => {
-  return new Intl.DateTimeFormat(t.locale, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "Europe/Bucharest",
-  }).format(new Date(isoString));
-};
-
-const formatTime = (isoString: string) => {
-  return new Intl.DateTimeFormat(t.locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Europe/Bucharest",
-  }).format(new Date(isoString));
-};
 ---
 <Section id="schedule" eyebrow={t.eyebrow} title={t.title}>
   {upcomingCourses.length === 0 ? (
@@ -94,9 +72,9 @@ const formatTime = (isoString: string) => {
           <div class="grid md:grid-cols-[220px_1fr_auto] gap-4 md:gap-8 items-start">
 
             <div>
-              <p class="font-display text-lg text-ink leading-snug">{formatDate(course.start_at)}</p>
+              <p class="font-display text-lg text-ink leading-snug">{formatCourseDate(course.start_at, t.locale)}</p>
               <p class="text-sm text-slate-warm mt-1">
-                {formatTime(course.start_at)} — {formatTime(course.end_at)}
+                {formatCourseTimeRange(course.start_at, course.end_at, t.locale)}
               </p>
             </div>
 

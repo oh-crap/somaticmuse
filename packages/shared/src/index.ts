@@ -1,6 +1,10 @@
 export * from "./types";
 export * from "./crm-types";
 export * from "./supabase";
+export * from "./lib/courses";
+export * from "./lib/format";
+export * from "./lib/students";
+export * from "./lib/tags";
 
 // ============================================================
 // Testimonial
