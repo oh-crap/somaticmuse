@@ -94,27 +94,34 @@ export const POST: APIRoute = async ({ request, redirect }) => {
       ];
 
       for (const entry of tagEntries) {
-        const { data: tag } = await supabaseAdmin
+        const { data: tag, error: tagError } = await supabaseAdmin
+      .from("tags")
+      .upsert(
+        { type: entry.type, value: entry.value },
+        { onConflict: "type,value", ignoreDuplicates: false },
+      )
+      .select("id, color_assigned")
+      .single();
+
+    if (tagError || !tag) {
+      console.error("[CRM] Tag upsert failed:", tagError?.message, entry);
+      continue;
+    }
+
+    if (!tag.color_assigned) {
+      const { error: rpcError } = await supabaseAdmin.rpc(
+        "assign_tag_color",
+        { p_tag_id: tag.id },
+      );
+      if (rpcError) {
+        console.error("[CRM] assign_tag_color failed:", rpcError.message);
+      } else {
+        await supabaseAdmin
           .from("tags")
-          .upsert(
-            { type: entry.type, value: entry.value },
-            { onConflict: "type,value", ignoreDuplicates: false },
-          )
-          .select("id, color")
-          .single();
-
-        if (tag) {
-          if (tag.color === "#6B7280") {
-            await supabaseAdmin.rpc("assign_tag_color", { p_tag_id: tag.id });
-          }
-
-          await supabaseAdmin
-            .from("student_tags")
-            .upsert(
-              { student_id: data.id, tag_id: tag.id, last_seen_at: course.start_at },
-              { onConflict: "student_id,tag_id" },
-            );
-        }
+          .update({ color_assigned: true })
+          .eq("id", tag.id);
+      }
+    }
       }
     }
   }
