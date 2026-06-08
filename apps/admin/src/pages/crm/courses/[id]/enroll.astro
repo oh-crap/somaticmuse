@@ -56,25 +56,26 @@ if (query.length > 0) {
 
   const words = query.split(/\s+/).filter(Boolean).map(sanitize);
 
+  // Search includes inactive students (per migration comment on students.active).
+  // The UI renders inactive ones in a muted style so the instructor can spot
+  // and reactivate them as needed.
   let dbQuery = supabaseAdmin
     .from("students")
-    .select("id, first_name, last_name, photo_url, active")
-    .eq("active", true);
+    .select("id, first_name, last_name, photo_url, active");
 
-  if (words.length === 1) {
-    const pattern = `%${words[0]}%`;
+  // For each token, require it to match either first_name or last_name.
+  // All tokens must match (AND across tokens, OR within each token).
+  // Example: "Ana Maria Popescu" → each of Ana/Maria/Popescu must appear
+  // in either first_name or last_name.
+  for (const word of words) {
+    const pattern = `%${word}%`;
     dbQuery = dbQuery.or(
       `first_name.ilike.${pattern},last_name.ilike.${pattern}`,
-    );
-  } else {
-    const w1 = `%${words[0]}%`;
-    const w2 = `%${words.slice(1).join(" ")}%`;
-    dbQuery = dbQuery.or(
-      `and(first_name.ilike.${w1},last_name.ilike.${w2}),and(first_name.ilike.${w2},last_name.ilike.${w1})`,
     );
   }
 
   const { data, error } = await dbQuery
+    .order("active", { ascending: false }) // active=true first, then inactive
     .order("last_name")
     .order("first_name")
     .limit(30)
@@ -145,41 +146,65 @@ const errorParam = Astro.url.searchParams.get("error");
       </p>
 
       {searchResults.length > 0 && (
-        <div class="bg-white border rounded-lg divide-y">
-          {searchResults.map(s => {
-            const alreadyEnrolled = enrolledIds.has(s.id);
-            return (
-              <div class="flex items-center gap-3 px-4 py-3">
-                {s.photo_url ? (
-                  <img src={s.photo_url} alt="" class="w-9 h-9 rounded-full object-cover shrink-0" />
-                ) : (
-                  <span class="w-9 h-9 rounded-full bg-gray-200 text-gray-600 text-xs font-medium flex items-center justify-center shrink-0">
-                    {initials(s.first_name, s.last_name)}
-                  </span>
-                )}
+  <div class="bg-white border rounded-lg divide-y">
+    {searchResults.map(s => {
+      const alreadyEnrolled = enrolledIds.has(s.id);
+      return (
+        <div
+          class:list={[
+            "flex items-center gap-3 px-4 py-3",
+            !s.active && "opacity-60",
+          ]}
+        >
+          {s.photo_url ? (
+            <img
+              src={s.photo_url}
+              alt=""
+              class:list={[
+                "w-9 h-9 rounded-full object-cover shrink-0",
+                !s.active && "grayscale",
+              ]}
+            />
+          ) : (
+            <span class="w-9 h-9 rounded-full bg-gray-200 text-gray-600 text-xs font-medium flex items-center justify-center shrink-0">
+              {initials(s.first_name, s.last_name)}
+            </span>
+          )}
 
-                <div class="min-w-0 flex-1">
-                  <div class="text-sm font-medium text-gray-900">{displayStudentName(s)}</div>
-                </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium text-gray-900 flex items-center gap-2">
+              {displayStudentName(s)}
+              {!s.active && (
+                <span class="text-[10px] uppercase tracking-wide font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                  inactive
+                </span>
+              )}
+            </div>
+          </div>
 
-                {alreadyEnrolled ? (
-                  <span class="text-xs text-green-600 font-medium px-3 py-1.5">✓ Enrolled</span>
-                ) : (
-                  <form action={`/api/crm/courses/${courseId}/enroll`} method="POST">
-                    <input type="hidden" name="student_id" value={s.id} />
-                    <input type="hidden" name="redirect_to" value={`/crm/courses/${courseId}/enroll?q=${encodeURIComponent(query)}&status=enrolled`} />
-                    <button type="submit" class="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors">
-                      Enroll
-                    </button>
-                  </form>
-                )}
-              </div>
-            );
-          })}
+          {alreadyEnrolled ? (
+            <span class="text-xs text-green-600 font-medium px-3 py-1.5">✓ Enrolled</span>
+          ) : (
+            <form action={`/api/crm/courses/${courseId}/enroll`} method="POST">
+              <input type="hidden" name="student_id" value={s.id} />
+              <input
+                type="hidden"
+                name="redirect_to"
+                value={`/crm/courses/${courseId}/enroll?q=${encodeURIComponent(query)}&status=enrolled`}
+              />
+              <button
+                type="submit"
+                class="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors"
+              >
+                Enroll
+              </button>
+            </form>
+          )}
         </div>
-      )}
-    </div>
-  )}
+      );
+    })}
+  </div>
+)}
 
   {query.length === 0 && (
     <p class="text-sm text-gray-400">Type a name to search for students to enroll.</p>
