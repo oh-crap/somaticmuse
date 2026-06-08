@@ -5,6 +5,7 @@
 import AdminLayout from "../../../layouts/AdminLayout.astro";
 import { supabaseAdmin } from "../../../lib/supabase";
 import type { Student } from "@somaticmuse/shared";
+import { initials, displayStudentName } from "@somaticmuse/shared";
 
 const query = Astro.url.searchParams.get("q")?.trim() ?? "";
 
@@ -47,9 +48,6 @@ if (query.length > 0) {
   }
   students = data ?? [];
 }
-
-const initials = (first: string, last: string) =>
-  `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
 ---
 <AdminLayout title="Search students">
   <div class="mb-6">
@@ -92,8 +90,8 @@ const initials = (first: string, last: string) =>
       {students.length > 0 && (
         <div class="bg-white border rounded-lg divide-y">
           {students.map((s) => (
-            <a
-              href={`/crm/students/${s.id}`}
+            
+              <a href={`/crm/students/${s.id}`}
               class:list={[
                 "flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group",
                 !s.active && "opacity-50",
@@ -109,7 +107,7 @@ const initials = (first: string, last: string) =>
 
               <div class="min-w-0 flex-1">
                 <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 truncate">
-                  {s.first_name} {s.last_name}
+                  {displayStudentName(s)}
                   {!s.active && <span class="ml-2 text-xs text-gray-400 font-normal">(inactive)</span>}
                 </div>
                 {(s.email || s.phone) && (

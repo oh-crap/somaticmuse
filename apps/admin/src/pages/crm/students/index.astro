@@ -5,6 +5,7 @@
 import AdminLayout from "../../../layouts/AdminLayout.astro";
 import { supabaseAdmin } from "../../../lib/supabase";
 import type { Student } from "@somaticmuse/shared";
+import { initials } from "@somaticmuse/shared";
 
 const { data, error } = await supabaseAdmin
   .from("students")
@@ -18,9 +19,6 @@ if (error) {
 }
 
 const students = data ?? [];
-
-const initials = (first: string, last: string) =>
-  `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
 
 // Group by first letter of last_name
 const grouped = students.reduce<Record<string, typeof students>>((acc, s) => {
@@ -58,8 +56,8 @@ const letters = Object.keys(grouped).sort();
   {letters.length > 1 && (
     <div class="flex flex-wrap gap-1 mb-6 text-sm">
       {letters.map((letter) => (
-        <a
-          href={`#letter-${letter}`}
+        
+          <a href={`#letter-${letter}`}
           class="w-8 h-8 flex items-center justify-center rounded bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition-colors font-medium"
         >
           {letter}
@@ -77,8 +75,8 @@ const letters = Object.keys(grouped).sort();
         </h3>
         <div class="bg-white border rounded-lg divide-y">
           {grouped[letter].map((s) => (
-            <a
-              href={`/crm/students/${s.id}`}
+            
+              <a href={`/crm/students/${s.id}`}
               class:list={[
                 "flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group",
                 !s.active && "opacity-50",

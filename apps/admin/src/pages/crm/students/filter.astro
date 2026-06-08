@@ -5,6 +5,7 @@
 import AdminLayout from "../../../layouts/AdminLayout.astro";
 import { supabaseAdmin } from "../../../lib/supabase";
 import type { Tag, TagType, Student } from "@somaticmuse/shared";
+import { initials, displayStudentName, sortStudentsByLastName } from "@somaticmuse/shared";
 
 // -----------------------------------------------------------------
 // 1. Parse query params
@@ -65,14 +66,14 @@ if (selectedTagIds.length > 0) {
     } else {
       // Deduplicate by student ID
       const seen = new Set<string>();
-      students = (data ?? [])
+      const deduped: StudentRow[] = (data ?? [])
         .map((row: any) => row.students)
         .filter((s: any) => {
           if (!s || seen.has(s.id)) return false;
           seen.add(s.id);
           return true;
-        })
-        .sort((a: StudentRow, b: StudentRow) => a.last_name.localeCompare(b.last_name));
+        });
+      students = sortStudentsByLastName(deduped);
     }
   } else {
     // AND: students who have ALL selected tags
@@ -118,7 +119,6 @@ if (selectedTagIds.length > 0) {
   }
 }
 
-const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
 const selectedSet = new Set(selectedTagIds);
 ---
 <AdminLayout title="Filter by tags">
@@ -209,8 +209,8 @@ const selectedSet = new Set(selectedTagIds);
       {students.length > 0 && (
         <div class="bg-white border rounded-lg divide-y">
           {students.map(s => (
-            <a
-              href={`/crm/students/${s.id}`}
+            
+              <a href={`/crm/students/${s.id}`}
               class:list={[
                 "flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group",
                 !s.active && "opacity-50",
@@ -225,7 +225,7 @@ const selectedSet = new Set(selectedTagIds);
               )}
               <div class="min-w-0 flex-1">
                 <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 truncate">
-                  {s.first_name} {s.last_name}
+                  {displayStudentName(s)}
                   {!s.active && <span class="ml-2 text-xs text-gray-400 font-normal">(inactive)</span>}
                 </div>
                 {(s.email || s.phone) && (

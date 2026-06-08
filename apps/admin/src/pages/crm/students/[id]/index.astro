@@ -5,6 +5,11 @@
 import AdminLayout from "../../../../layouts/AdminLayout.astro";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import type { Student, Tag, Course } from "@somaticmuse/shared";
+import {
+  initials,
+  displayStudentName,
+  formatCRMDateTime as formatDT,
+} from "@somaticmuse/shared";
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect("/crm?error=Missing+student+ID");
@@ -106,24 +111,16 @@ const availableCourses = (availableCoursesRaw ?? [])
   .filter((c: any) => !enrolledCourseIds.has(c.id));
 
 // -----------------------------------------------------------------
-// Helpers
+// Local helpers
 // -----------------------------------------------------------------
-const formatDT = (iso: string) =>
-  new Intl.DateTimeFormat("en-GB", {
-    weekday: "short", day: "2-digit", month: "short",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-    timeZone: "Europe/Bucharest",
-  }).format(new Date(iso));
-
-const formatDateShort = (iso: string) =>
+// Note: this formatter includes year (e.g. "10 Jun 2024"), unlike shared
+// formatDateShort which omits year. Used for "First lesson" stat and past
+// course history where year matters for historical context.
+const formatDateWithYear = (iso: string) =>
   new Intl.DateTimeFormat("en-GB", {
     day: "2-digit", month: "short", year: "numeric",
     timeZone: "Europe/Bucharest",
   }).format(new Date(iso));
-
-const isPast = (iso: string) => new Date(iso) < now;
-
-const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
 
 // Toast
 const statusParam = Astro.url.searchParams.get("status");
@@ -144,7 +141,7 @@ const whatsappUrl = student.phone
 
 const mailtoUrl = student.email ? `mailto:${student.email}` : null;
 ---
-<AdminLayout title={`${student.first_name} ${student.last_name}`}>
+<AdminLayout title={displayStudentName(student)}>
 
   {/* Back + status badge */}
   <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -222,7 +219,7 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
       {/* Stats */}
       {pastCourses.length > 0 && (
         <div class="text-xs text-gray-500 space-y-0.5">
-          <div>First lesson: {formatDateShort(pastCourses[0].start_at)}</div>
+          <div>First lesson: {formatDateWithYear(pastCourses[0].start_at)}</div>
           <div>Lessons attended: {pastCourses.length}</div>
         </div>
       )}
@@ -369,7 +366,7 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
                 >
                   <div class="min-w-0 flex-1">
                     <div class="font-medium text-gray-600 truncate">{c.title}</div>
-                    <div class="text-gray-400">{formatDateShort(c.start_at)}</div>
+                    <div class="text-gray-400">{formatDateWithYear(c.start_at)}</div>
                   </div>
                   <form
                     action={`/api/crm/students/${id}/unenroll`}
@@ -409,7 +406,7 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
                 const isPastCourse = new Date(c.start_at) < now;
                 return (
                   <option value={c.id}>
-                    {isPastCourse ? "↩ " : ""}{c.title} — {formatDateShort(c.start_at)}
+                    {isPastCourse ? "↩ " : ""}{c.title} — {formatDateWithYear(c.start_at)}
                   </option>
                 );
               })}
