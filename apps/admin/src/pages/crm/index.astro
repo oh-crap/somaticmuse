@@ -6,6 +6,14 @@
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { supabaseAdmin } from "../../lib/supabase";
 import type { Course, SleepingStudent } from "@somaticmuse/shared";
+import {
+  initials,
+  displayStudentName,
+  sortStudentsByLastName,
+  formatCRMDateTime as formatDateTime,
+  formatDateShort,
+  daysAgo,
+} from "@somaticmuse/shared";
 
 // -----------------------------------------------------------------
 // 1. Three upcoming courses with enrolled students
@@ -49,10 +57,11 @@ const upcomingCourses: UpcomingCourse[] = (coursesRaw ?? []).map((c: any) => ({
   start_at: c.start_at,
   end_at: c.end_at,
   studio_name: c.studio_name,
-  students: (c.course_students ?? [])
-    .map((cs: any) => cs.students)
-    .filter(Boolean)
-    .sort((a: any, b: any) => a.last_name.localeCompare(b.last_name)),
+  students: sortStudentsByLastName(
+    (c.course_students ?? [])
+      .map((cs: any) => cs.students)
+      .filter(Boolean)
+  ),
 }));
 
 // -----------------------------------------------------------------
@@ -68,40 +77,6 @@ if (sleepingError) {
 }
 
 const sleepingStudents: SleepingStudent[] = (sleepingRaw as SleepingStudent[]) ?? [];
-
-// -----------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------
-const formatDateTime = (iso: string) => {
-  return new Intl.DateTimeFormat("en-GB", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Europe/Bucharest",
-  }).format(new Date(iso));
-};
-
-const formatDateShort = (iso: string) => {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    timeZone: "Europe/Bucharest",
-  }).format(new Date(iso));
-};
-
-const daysAgo = (iso: string) => {
-  const diff = Date.now() - new Date(iso).getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return "today";
-  if (days === 1) return "1 day ago";
-  return `${days} days ago`;
-};
-
-const initials = (first: string, last: string) =>
-  `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
 ---
 <AdminLayout title="CRM">
   <!-- ============================================================ -->
@@ -169,8 +144,8 @@ const initials = (first: string, last: string) =>
               ) : (
                 <div class="flex flex-wrap gap-2">
                   {course.students.map((student) => (
-                    <a
-                      href={`/crm/students/${student.id}`}
+                    
+                     <a href={`/crm/students/${student.id}`}
                       class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-blue-50 border rounded-full text-sm transition-colors group"
                     >
                       {student.photo_url ? (
@@ -185,7 +160,7 @@ const initials = (first: string, last: string) =>
                         </span>
                       )}
                       <span class="text-gray-700 group-hover:text-blue-600">
-                        {student.first_name} {student.last_name}
+                        {displayStudentName(student)}
                       </span>
                     </a>
                   ))}
@@ -255,8 +230,8 @@ const initials = (first: string, last: string) =>
         {sleepingStudents.length > 0 && (
           <div class="bg-white border rounded-lg divide-y">
             {sleepingStudents.map((s) => (
-              <a
-                href={`/crm/students/${s.id}`}
+              
+                <a href={`/crm/students/${s.id}`}
                 class="flex items-center gap-3 px-3 py-2.5 hover:bg-yellow-50 transition-colors group"
               >
                 {/* Avatar */}
@@ -271,7 +246,7 @@ const initials = (first: string, last: string) =>
                 {/* Name + meta */}
                 <div class="min-w-0 flex-1">
                   <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 truncate">
-                    {s.first_name} {s.last_name}
+                    {displayStudentName(s)}
                   </div>
                   <div class="text-[11px] text-gray-400 truncate">
                     Last: {daysAgo(s.last_attended_at)} · {s.past_course_count} courses

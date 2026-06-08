@@ -4,7 +4,6 @@ export * from "./supabase";
 export * from "./lib/courses";
 export * from "./lib/format";
 export * from "./lib/students";
-export * from "./lib/tags";
 
 // ============================================================
 // Testimonial
@@ -22,5 +21,8 @@ export interface Testimonial {
   updated_at: string;
 }
 
-export type TestimonialInsert = Omit<Testimonial, "id" | "created_at" | "updated_at">;
+export type TestimonialInsert = Omit<
+  Testimonial,
+  "id" | "created_at" | "updated_at"
+>;
 export type TestimonialUpdate = Partial<TestimonialInsert>;

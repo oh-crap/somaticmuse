@@ -62,3 +62,41 @@ export function formatAdminDateTime(iso: string): string {
 export function isPast(iso: string, now: Date = new Date()): boolean {
   return new Date(iso).getTime() < now.getTime();
 }
+/**
+ * Format datetime for CRM list displays — like formatAdminDateTime but without year.
+ * Output example: "Mon, 10 Jun, 18:00"
+ */
+export function formatCRMDateTime(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Europe/Bucharest",
+  }).format(new Date(iso));
+}
+
+/**
+ * Short date (day + month). Output example: "10 Jun".
+ */
+export function formatDateShort(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    timeZone: "Europe/Bucharest",
+  }).format(new Date(iso));
+}
+
+/**
+ * Relative time in plain English. Output: "today" / "1 day ago" / "N days ago".
+ * Always backward-looking; future dates clamp to "today".
+ */
+export function daysAgo(iso: string, now: Date = new Date()): string {
+  const diff = now.getTime() - new Date(iso).getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "today";
+  if (days === 1) return "1 day ago";
+  return `${days} days ago`;
+}
