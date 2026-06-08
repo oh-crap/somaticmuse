@@ -4,6 +4,7 @@
 
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../../../lib/supabase";
+import { safeRedirect } from "../../../../../lib/redirect";
 import type { TagType } from "@somaticmuse/shared";
 
 export const POST: APIRoute = async ({ params, request, redirect }) => {
@@ -14,8 +15,9 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
 
   const formData = await request.formData();
   const studentId = String(formData.get("student_id") ?? "").trim();
-  const redirectTo = String(
-    formData.get("redirect_to") ?? `/crm/courses/${courseId}/enroll`,
+  const redirectTo = safeRedirect(
+    formData.get("redirect_to")?.toString(),
+    `/crm/courses/${courseId}/enroll`,
   );
 
   if (!studentId) {

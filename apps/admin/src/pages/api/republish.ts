@@ -3,10 +3,14 @@
 // Called from the Republish button in AdminLayout header.
 
 import type { APIRoute } from "astro";
+import { safeRedirect } from "../../lib/redirect";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
   const formData = await request.formData();
-  const redirectTo = String(formData.get("redirect_to") ?? "/");
+  const redirectTo = safeRedirect(
+    formData.get("redirect_to")?.toString(),
+    "/",
+  );
 
   // Build-time env (consistent with Supabase pattern in lib/supabase.ts).
   // Vite replaces this with literal value during build; secret stays in bundle.

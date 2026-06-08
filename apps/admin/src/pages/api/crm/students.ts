@@ -42,7 +42,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
   if (errors.length > 0) {
     const errorMsg = encodeURIComponent(errors.join("; "));
-    const courseParam = courseId ? `&course_id=${courseId}` : "";
+    const courseParam = courseId ? `&course_id=${encodeURIComponent(courseId)}` : "";
     return redirect(`/crm/students/new?error=${errorMsg}${courseParam}`, 302);
   }
 
@@ -65,7 +65,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   if (error) {
     console.error("[CRM] Student insert failed:", error.message);
     const errorMsg = encodeURIComponent(`Database error: ${error.message}`);
-    const courseParam = courseId ? `&course_id=${courseId}` : "";
+    const courseParam = courseId ? `&course_id=${encodeURIComponent(courseId)}` : "";
     return redirect(`/crm/students/new?error=${errorMsg}${courseParam}`, 302);
   }
 
