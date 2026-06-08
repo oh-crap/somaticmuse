@@ -27,9 +27,9 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
   if (!name) errors.push("Name is required");
   if (!content) errors.push("Content is required");
 
-  const display_order = parseInt(display_order_raw, 10);
-  if (isNaN(display_order) || display_order < 0) {
-    errors.push("Display order must be a non-negative integer");
+  const display_order = Number(display_order_raw);
+  if (!Number.isInteger(display_order) || display_order < 0) {
+  errors.push("Display order must be a non-negative integer");
   }
 
   let photo_url: string | null = null;

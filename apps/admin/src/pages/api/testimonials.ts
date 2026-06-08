@@ -9,7 +9,9 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   const formData = await request.formData();
 
   const name = String(formData.get("name") ?? "").trim();
-  const role_or_location = String(formData.get("role_or_location") ?? "").trim();
+  const role_or_location = String(
+    formData.get("role_or_location") ?? "",
+  ).trim();
   const content = String(formData.get("content") ?? "").trim();
   const photo_url_raw = String(formData.get("photo_url") ?? "").trim();
   const display_order_raw = String(formData.get("display_order") ?? "");
@@ -22,8 +24,8 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   if (!content) errors.push("Content is required");
 
   // Display order: must be valid integer ≥ 0
-  const display_order = parseInt(display_order_raw, 10);
-  if (isNaN(display_order) || display_order < 0) {
+  const display_order = Number(display_order_raw);
+  if (!Number.isInteger(display_order) || display_order < 0) {
     errors.push("Display order must be a non-negative integer");
   }
 
@@ -53,9 +55,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     visible,
   };
 
-  const { error } = await supabaseAdmin
-    .from("testimonials")
-    .insert(insertData);
+  const { error } = await supabaseAdmin.from("testimonials").insert(insertData);
 
   if (error) {
     console.error("[Admin] Testimonial insert failed:", error.message);
@@ -66,11 +66,9 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   return redirect("/testimonials?status=created", 302);
 };
 
-  const statusMessages: Record<string, string> = {
+const statusMessages: Record<string, string> = {
   created: "Testimonial created successfully",
   updated: "Testimonial updated successfully",
   deleted: "Testimonial deleted successfully",
   republished: "Republish triggered. Website will update in ~1-2 min.",
-
-
 };
