@@ -11,12 +11,10 @@ export default defineConfig({
     imageService: "passthrough",
   }),
   security: {
-    // CSRF check disabled. Two reasons:
-    // 1) Codespace forwards via reverse proxy → Origin header mismatches
-    //    host → all POSTs would be blocked in dev.
-    // 2) In production, admin is behind Cloudflare Access (Zero Trust auth),
-    //    which provides stronger CSRF protection than Astro's Origin check.
-    checkOrigin: false,
+    // CSRF protection via Origin header check.
+    // Disabled in dev because Codespace reverse proxy mismatches Origin/Host.
+    // Enabled in production for defense-in-depth alongside Cloudflare Access.
+    checkOrigin: !import.meta.env.DEV,
   },
   server: {
     host: true,
