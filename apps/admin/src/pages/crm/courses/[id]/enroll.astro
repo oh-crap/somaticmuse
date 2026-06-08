@@ -5,6 +5,11 @@
 import AdminLayout from "../../../../layouts/AdminLayout.astro";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import type { Student } from "@somaticmuse/shared";
+import {
+  initials,
+  displayStudentName,
+  formatCRMDateTime as formatDT,
+} from "@somaticmuse/shared";
 
 const courseId = Astro.params.id;
 if (!courseId) return Astro.redirect("/crm?error=Missing+course+ID");
@@ -68,15 +73,6 @@ if (query.length > 0) {
 // Status messages
 const statusParam = Astro.url.searchParams.get("status");
 const errorParam = Astro.url.searchParams.get("error");
-
-const formatDT = (iso: string) =>
-  new Intl.DateTimeFormat("en-GB", {
-    weekday: "short", day: "2-digit", month: "short",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-    timeZone: "Europe/Bucharest",
-  }).format(new Date(iso));
-
-const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
 ---
 <AdminLayout title={`Enroll students — ${course.title}`}>
   <div class="mb-6">
@@ -113,8 +109,8 @@ const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUppe
 
   {/* Quick link to create + enroll */}
   <div class="mb-6">
-    <a
-      href={`/crm/students/new?course_id=${courseId}`}
+    
+      <a href={`/crm/students/new?course_id=${courseId}`}
       class="text-sm text-blue-600 hover:underline"
     >
       + Create new student and enroll in this course
@@ -149,7 +145,7 @@ const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUppe
                 )}
 
                 <div class="min-w-0 flex-1">
-                  <div class="text-sm font-medium text-gray-900">{s.first_name} {s.last_name}</div>
+                  <div class="text-sm font-medium text-gray-900">{displayStudentName(s)}</div>
                 </div>
 
                 {alreadyEnrolled ? (
