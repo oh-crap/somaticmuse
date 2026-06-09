@@ -1,8 +1,215 @@
 ---
 // apps/admin/src/components/dashboard/TileDropouts.astro
-// Tile 4: Odpadávači. Placeholder; full impl in Milestone 5.
+// Tile 4: Dropouts — irregular attendance / declining activity.
+//
+// URL params owned: dr_type (irregular|declining), dr_page
+
+import {
+  fetchIrregularData,
+  fetchDecliningData,
+  DROPOUTS_PER_PAGE,
+  WEEKS_IN_WINDOW,
+  type DropoutsType,
+  type IrregularRow,
+  type DecliningRow,
+} from "../../lib/dashboard/dropouts";
+import { preserveOtherTileParams } from "../../lib/dashboard/url";
+
+function parseType(raw: string | null): DropoutsType {
+  return raw === "declining" ? "declining" : "irregular";
+}
+
+function parsePage(raw: string | null): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
+
+const url = Astro.url;
+const filterType = parseType(url.searchParams.get("dr_type"));
+const requestedPage = parsePage(url.searchParams.get("dr_page"));
+const otherParams = preserveOtherTileParams(url, "dropouts");
+
+const result =
+  filterType === "irregular"
+    ? await fetchIrregularData(requestedPage)
+    : await fetchDecliningData(requestedPage);
+
+const totalPages = Math.max(1, Math.ceil(result.total / DROPOUTS_PER_PAGE));
+const currentPage = Math.min(requestedPage, totalPages);
+
+// Booleans extracted to avoid Astro JSX parser confusion on >/< comparisons
+const isEmpty = result.rows.length === 0;
+const hasResults = result.rows.length > 0;
+const hasMultiplePages = totalPages > 1;
+const hasPrev = currentPage > 1;
+const hasNext = currentPage < totalPages;
+const isIrregular = filterType === "irregular";
+const isDeclining = filterType === "declining";
+
+// Type-narrowed row arrays for safe rendering
+const irregularRows = isIrregular ? (result.rows as IrregularRow[]) : [];
+const decliningRows = isDeclining ? (result.rows as DecliningRow[]) : [];
+
+function daysSince(iso: string): number {
+  const diff = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+}
+
+function formatLastLesson(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/Bucharest",
+  }).format(new Date(iso));
+}
+
+function initials(first: string, last: string): string {
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+}
+
+function buildUrl(type: DropoutsType, page: number): string {
+  const params = new URLSearchParams();
+  for (const p of otherParams) params.set(p.name, p.value);
+  if (type !== "irregular") params.set("dr_type", type);
+  if (page !== 1) params.set("dr_page", String(page));
+  const qs = params.toString();
+  return `/dashboard${qs ? "?" + qs : ""}#tile-dropouts`;
+}
+
+const prevPageUrl = buildUrl(filterType, currentPage - 1);
+const nextPageUrl = buildUrl(filterType, currentPage + 1);
 ---
 <div class="bg-white border rounded-lg p-4 h-full">
-  <h3 class="text-sm font-semibold text-gray-700 mb-2">Dropouts</h3>
-  <p class="text-sm text-gray-400 italic">To be implemented in Milestone 5.</p>
+  <h3 class="text-sm font-semibold text-gray-700 mb-3">
+    {isIrregular ? "Irregular attendance" : "Declining activity"}
+  </h3>
+
+  {/* Type toggle */}
+  <div class="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100 text-xs">
+    <div class="flex border rounded overflow-hidden">
+      <a
+        href={buildUrl("irregular", 1)}
+        class={`px-2 py-1 transition-colors ${isIrregular ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+      >Irregular</a>
+      <a
+        href={buildUrl("declining", 1)}
+        class={`px-2 py-1 border-l transition-colors ${isDeclining ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+      >Declining</a>
+    </div>
+  </div>
+
+  {/* Summary */}
+  <div class="text-xs text-gray-500 mb-2">
+    {result.total} {result.total === 1 ? "student" : "students"}
+    <span class="ml-1 text-gray-400">
+      · {isIrregular ? "last 91 days" : "drop ≥3 lessons in last 91 days vs previous 91"}
+    </span>
+  </div>
+
+  {/* Empty state */}
+  {isEmpty && (
+    <p class="text-sm text-gray-400 italic">
+      {isIrregular
+        ? "No active students with past attendance."
+        : "No students with significant activity drop."}
+    </p>
+  )}
+
+  {/* Irregular list */}
+  {isIrregular && hasResults && (
+    <ul class="space-y-1">
+      {irregularRows.map((s) => (
+        <li>
+          <a
+            href={`/crm/students/${s.id}`}
+            class="flex items-center gap-2.5 p-1.5 rounded hover:bg-gray-50 transition-colors group"
+          >
+            {s.photo_url ? (
+              <img src={s.photo_url} alt="" class="w-8 h-8 rounded-full object-cover shrink-0" />
+            ) : (
+              <span class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 text-xs font-medium flex items-center justify-center shrink-0">
+                {initials(s.first_name, s.last_name)}
+              </span>
+            )}
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 truncate">
+                {s.first_name} {s.last_name}
+              </div>
+              <div class="text-[11px] text-gray-400">
+                {s.active_weeks}/{WEEKS_IN_WINDOW} active weeks · coef. {s.activity_coefficient.toFixed(2)}
+              </div>
+              {s.last_lesson_at && (
+                <div class="text-[11px] text-gray-400">
+                  Last lesson: {formatLastLesson(s.last_lesson_at)} · {daysSince(s.last_lesson_at)} {daysSince(s.last_lesson_at) === 1 ? "day" : "days"} ago
+                </div>
+              )}
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {/* Declining list */}
+  {isDeclining && hasResults && (
+    <ul class="space-y-1">
+      {decliningRows.map((s) => (
+        <li>
+          <a
+            href={`/crm/students/${s.id}`}
+            class="flex items-center gap-2.5 p-1.5 rounded hover:bg-gray-50 transition-colors group"
+          >
+            {s.photo_url ? (
+              <img src={s.photo_url} alt="" class="w-8 h-8 rounded-full object-cover shrink-0" />
+            ) : (
+              <span class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 text-xs font-medium flex items-center justify-center shrink-0">
+                {initials(s.first_name, s.last_name)}
+              </span>
+            )}
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 truncate">
+                {s.first_name} {s.last_name}
+              </div>
+              <div class="text-[11px] text-gray-400">
+                {s.prev_count} → {s.curr_count} lessons · drop −{s.drop}
+              </div>
+              {s.last_lesson_at && (
+                <div class="text-[11px] text-gray-400">
+                  Last lesson: {formatLastLesson(s.last_lesson_at)} · {daysSince(s.last_lesson_at)} {daysSince(s.last_lesson_at) === 1 ? "day" : "days"} ago
+                </div>
+              )}
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {/* Pagination */}
+  {hasMultiplePages && (
+    <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 text-xs">
+      <div class="text-gray-500">
+        Page {currentPage} of {totalPages}
+      </div>
+      <div class="flex gap-1.5">
+        {hasPrev ? (
+          
+            <a href={prevPageUrl}
+            class="px-2 py-1 border rounded text-gray-700 hover:bg-gray-50 transition-colors"
+          >← Prev</a>
+        ) : (
+          <span class="px-2 py-1 border rounded text-gray-300 cursor-not-allowed">← Prev</span>
+        )}
+        {hasNext ? (
+          
+            <a href={nextPageUrl}
+            class="px-2 py-1 border rounded text-gray-700 hover:bg-gray-50 transition-colors"
+          >Next →</a>
+        ) : (
+          <span class="px-2 py-1 border rounded text-gray-300 cursor-not-allowed">Next →</span>
+        )}
+      </div>
+    </div>
+  )}
 </div>
