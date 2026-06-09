@@ -3,11 +3,34 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
 import { supabaseAdmin, type Course } from "../../lib/supabase";
 import { formatAdminDateTime, isPast } from "@somaticmuse/shared";
 
-// Fetch all courses, ordered chronologically
+const PER_PAGE = 20;
+
+// Pagination state from URL
+const pageParam = Number(Astro.url.searchParams.get("page"));
+const requestedPage =
+  Number.isInteger(pageParam) && pageParam >= 1 ? pageParam : 1;
+
+// Fetch total count first, so we can clamp page server-side and avoid
+// rendering empty overflow pages.
+const { count: totalCount, error: countError } = await supabaseAdmin
+  .from("courses")
+  .select("*", { count: "exact", head: true });
+
+if (countError) {
+  console.error("[Admin] Failed to count courses:", countError.message);
+}
+
+const total = totalCount ?? 0;
+const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+const currentPage = Math.min(requestedPage, totalPages);
+const offset = (currentPage - 1) * PER_PAGE;
+
+// Fetch one page, newest first by start_at
 const { data, error } = await supabaseAdmin
   .from("courses")
   .select("*")
-  .order("start_at", { ascending: true })
+  .order("start_at", { ascending: false })
+  .range(offset, offset + PER_PAGE - 1)
   .returns<Course[]>();
 
 if (error) {
@@ -16,7 +39,7 @@ if (error) {
 
 const courses = data ?? [];
 
-// Toast message based on query param after redirect
+// Toast handling
 const statusParam = Astro.url.searchParams.get("status");
 const errorParam = Astro.url.searchParams.get("error");
 
@@ -28,6 +51,12 @@ const statusMessages: Record<string, string> = {
 };
 
 const successMessage = statusParam ? statusMessages[statusParam] : null;
+
+// Pagination link helpers
+const hasPrev = currentPage > 1;
+const hasNext = currentPage < totalPages;
+const prevHref = `/courses?page=${currentPage - 1}`;
+const nextHref = `/courses?page=${currentPage + 1}`;
 ---
 <AdminLayout title="Courses">
   <div class="flex items-center justify-between mb-6">
@@ -55,11 +84,11 @@ const successMessage = statusParam ? statusMessages[statusParam] : null;
     </div>
   )}
 
-  {!error && courses.length === 0 && (
+  {!error && total === 0 && (
     <p class="text-gray-500">No courses yet. Click "+ New course" to add the first one.</p>
   )}
 
-  {courses.length > 0 && (
+  {total > 0 && (
     <div class="overflow-x-auto bg-white border rounded">
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-left text-xs uppercase text-gray-600 tracking-wider">
@@ -104,6 +133,34 @@ const successMessage = statusParam ? statusMessages[statusParam] : null;
           ))}
         </tbody>
       </table>
+    </div>
+  )}
+
+  {total > 0 && totalPages > 1 && (
+    <div class="flex items-center justify-between mt-4 text-sm">
+      <div class="text-gray-500">
+        Page {currentPage} of {totalPages} · {total} {total === 1 ? "course" : "courses"} total
+      </div>
+      <div class="flex gap-2">
+        {hasPrev ? (
+          <a href={prevHref} class="px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50 transition-colors">
+            ← Previous
+          </a>
+        ) : (
+          <span class="px-3 py-1.5 border rounded text-gray-300 cursor-not-allowed">
+            ← Previous
+          </span>
+        )}
+        {hasNext ? (
+          <a href={nextHref} class="px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50 transition-colors">
+            Next →
+          </a>
+        ) : (
+          <span class="px-3 py-1.5 border rounded text-gray-300 cursor-not-allowed">
+            Next →
+          </span>
+        )}
+      </div>
     </div>
   )}
 </AdminLayout>

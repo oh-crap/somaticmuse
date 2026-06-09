@@ -1,8 +1,124 @@
 ---
 // apps/admin/src/components/dashboard/TileBilling.astro
-// Tile 1: Fakturace. Placeholder for Milestone 1; full impl in Milestone 2.
+// Tile 1: Billing.
+//
+// For a given calendar month, lists studios where the instructor taught,
+// each studio's lessons, and per-lesson attendance.
+//
+// URL params owned: m (YYYY-MM), hide_empty (presence = true).
+
+import { parseMonth } from "../../lib/dashboard/period";
+import { fetchBillingData } from "../../lib/dashboard/billing";
+import { preserveOtherTileParams } from "../../lib/dashboard/url";
+
+const url = Astro.url;
+const month = parseMonth(url.searchParams.get("m"));
+const hideEmpty = url.searchParams.has("hide_empty");
+const otherParams = preserveOtherTileParams(url, "billing");
+
+const result = await fetchBillingData(month.start, month.end, hideEmpty);
+
+// Format helper — Bucharest timezone, short weekday + date + 24h time
+const formatLessonTime = (iso: string): string =>
+  new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Europe/Bucharest",
+  }).format(new Date(iso));
 ---
 <div class="bg-white border rounded-lg p-4 h-full">
-  <h3 class="text-sm font-semibold text-gray-700 mb-2">Billing</h3>
-  <p class="text-sm text-gray-400 italic">To be implemented in Milestone 2.</p>
+  <h3 class="text-sm font-semibold text-gray-700 mb-3">Billing</h3>
+
+  {/* Filter form */}
+  <form
+    action="/dashboard#tile-billing"
+    method="GET"
+    class="flex flex-wrap items-end gap-2 mb-4 pb-3 border-b border-gray-100"
+  >
+    {otherParams.map((p) => (
+      <input type="hidden" name={p.name} value={p.value} />
+    ))}
+
+    <div>
+      <label for="billing-month" class="block text-xs text-gray-500 mb-1">Month</label>
+      <input
+        type="month"
+        id="billing-month"
+        name="m"
+        value={month.value}
+        min="2026-06"
+        class="px-2 py-1 border rounded text-sm"
+      />
+    </div>
+
+    <label class="flex items-center gap-1.5 pb-1.5 cursor-pointer">
+      <input
+        type="checkbox"
+        name="hide_empty"
+        value="1"
+        checked={hideEmpty}
+        class="w-3.5 h-3.5"
+      />
+      <span class="text-xs text-gray-700">Hide empty lessons</span>
+    </label>
+
+    <button
+      type="submit"
+      class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
+    >
+      Apply
+    </button>
+  </form>
+
+  {/* Period label + totals */}
+  <div class="text-xs text-gray-500 mb-3">
+    {month.label}
+    {result.studios.length > 0 && (
+      <Fragment>
+        {" · "}
+        {result.total_lessons} {result.total_lessons === 1 ? "lesson" : "lessons"}
+        {" · "}
+        {result.total_attendees} {result.total_attendees === 1 ? "attendance" : "attendances"}
+      </Fragment>
+    )}
+  </div>
+
+  {/* Results */}
+  {result.studios.length === 0 && (
+    <p class="text-sm text-gray-400 italic">
+      No lessons in {month.label}.
+    </p>
+  )}
+
+  {result.studios.length > 0 && (
+    <div class="space-y-4">
+      {result.studios.map((studio) => (
+        <div>
+          <div class="flex items-baseline justify-between mb-1">
+            <div class="text-sm font-medium text-gray-800">{studio.studio_name}</div>
+            <div class="text-xs text-gray-400">
+              {studio.course_count} {studio.course_count === 1 ? "course" : "courses"}
+            </div>
+          </div>
+          <ul class="text-sm space-y-1">
+            {studio.lessons.map((lesson) => (
+              <li class="flex items-baseline justify-between gap-3 text-gray-700">
+                <span class="truncate">
+                  <span class="text-gray-500 mr-2">{formatLessonTime(lesson.start_at)}</span>
+                  {lesson.title}
+                </span>
+                <span class={`text-xs shrink-0 ${lesson.student_count === 0 ? "text-gray-400" : "text-gray-600"}`}>
+                  {lesson.student_count} {lesson.student_count === 1 ? "student" : "students"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )}
 </div>
