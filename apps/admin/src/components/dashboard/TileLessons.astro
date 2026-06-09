@@ -1,8 +1,184 @@
 ---
 // apps/admin/src/components/dashboard/TileLessons.astro
-// Tile 3: No-lesson / single-lesson students. Placeholder; full impl in Milestone 4.
+// Tile 3: No-lesson / single-lesson students.
+//
+// URL params owned: ls_type (single|none), ls_sort (recent|alpha), ls_page
+
+import {
+  fetchLessonsData,
+  LESSONS_PER_PAGE,
+  type LessonsFilterType,
+  type LessonsSortType,
+} from "../../lib/dashboard/lessons";
+import { preserveOtherTileParams } from "../../lib/dashboard/url";
+
+function parseType(raw: string | null): LessonsFilterType {
+  return raw === "none" ? "none" : "single";
+}
+
+function parseSort(raw: string | null): LessonsSortType {
+  return raw === "alpha" ? "alpha" : "recent";
+}
+
+function parsePage(raw: string | null): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
+
+const url = Astro.url;
+const filterType = parseType(url.searchParams.get("ls_type"));
+const sortType = parseSort(url.searchParams.get("ls_sort"));
+const requestedPage = parsePage(url.searchParams.get("ls_page"));
+const otherParams = preserveOtherTileParams(url, "lessons");
+
+const result = await fetchLessonsData(filterType, sortType, requestedPage);
+
+const totalPages = Math.max(1, Math.ceil(result.total / LESSONS_PER_PAGE));
+const currentPage = Math.min(requestedPage, totalPages);
+
+// Pagination booleans extracted to avoid Astro JSX parser confusion
+// when comparing member expressions (e.g. result.rows.length > 0).
+const isEmpty = result.rows.length === 0;
+const hasResults = result.rows.length > 0;
+const hasMultiplePages = totalPages > 1;
+const hasPrev = currentPage > 1;
+const hasNext = currentPage < totalPages;
+
+// Pre-compute pagination URLs (don't compute in JSX twice)
+const prevPageUrl = buildUrl(filterType, sortType, currentPage - 1);
+const nextPageUrl = buildUrl(filterType, sortType, currentPage + 1);
+
+function daysSince(iso: string): number {
+  const diff = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+}
+
+function formatLastLesson(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/Bucharest",
+  }).format(new Date(iso));
+}
+
+function initials(first: string, last: string): string {
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+}
+
+/** Build a URL preserving other tiles' params and applying this tile's state. */
+function buildUrl(
+  type: LessonsFilterType,
+  sort: LessonsSortType,
+  page: number,
+): string {
+  const params = new URLSearchParams();
+  for (const p of otherParams) params.set(p.name, p.value);
+  // Only set non-default values to keep URLs short
+  if (type !== "single") params.set("ls_type", type);
+  if (sort !== "recent") params.set("ls_sort", sort);
+  if (page !== 1) params.set("ls_page", String(page));
+  const qs = params.toString();
+  return `/dashboard${qs ? "?" + qs : ""}#tile-lessons`;
+}
 ---
 <div class="bg-white border rounded-lg p-4 h-full">
-  <h3 class="text-sm font-semibold text-gray-700 mb-2">No-lesson / single-lesson students</h3>
-  <p class="text-sm text-gray-400 italic">To be implemented in Milestone 4.</p>
+  <h3 class="text-sm font-semibold text-gray-700 mb-3">
+    {filterType === "none" ? "No-lesson students" : "Single-lesson students"}
+  </h3>
+
+  {/* Toggles */}
+  <div class="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-gray-100 text-xs">
+    <div class="flex border rounded overflow-hidden">
+      <a
+        href={buildUrl("single", sortType, 1)}
+        class={`px-2 py-1 transition-colors ${filterType === "single" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+      >Single lesson</a>
+      <a
+        href={buildUrl("none", sortType, 1)}
+        class={`px-2 py-1 border-l transition-colors ${filterType === "none" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+      >No lesson</a>
+    </div>
+
+    <div class="flex border rounded overflow-hidden ml-auto">
+      <a
+        href={buildUrl(filterType, "recent", 1)}
+        class={`px-2 py-1 transition-colors ${sortType === "recent" ? "bg-gray-200 text-gray-900" : "text-gray-600 hover:bg-gray-50"}`}
+      >Recent</a>
+      <a
+        href={buildUrl(filterType, "alpha", 1)}
+        class={`px-2 py-1 border-l transition-colors ${sortType === "alpha" ? "bg-gray-200 text-gray-900" : "text-gray-600 hover:bg-gray-50"}`}
+      >A–Z</a>
+    </div>
+  </div>
+
+  {/* Summary */}
+  <div class="text-xs text-gray-500 mb-2">
+    {result.total} {result.total === 1 ? "student" : "students"}
+  </div>
+
+  {/* List */}
+  {isEmpty && (
+    <p class="text-sm text-gray-400 italic">
+      No {filterType === "none" ? "no-lesson" : "single-lesson"} students.
+    </p>
+  )}
+
+  {hasResults && (
+    <ul class="space-y-1">
+      {result.rows.map((s) => (
+        <li>
+          <a
+            href={`/crm/students/${s.id}`}
+            class="flex items-center gap-2.5 p-1.5 rounded hover:bg-gray-50 transition-colors group"
+          >
+            {s.photo_url ? (
+              <img src={s.photo_url} alt="" class="w-8 h-8 rounded-full object-cover shrink-0" />
+            ) : (
+              <span class="w-8 h-8 rounded-full bg-gray-200 text-gray-600 text-xs font-medium flex items-center justify-center shrink-0">
+                {initials(s.first_name, s.last_name)}
+              </span>
+            )}
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 truncate">
+                {s.first_name} {s.last_name}
+              </div>
+              {filterType === "single" && s.last_lesson_at && (
+                <div class="text-[11px] text-gray-400">
+                  Last lesson: {formatLastLesson(s.last_lesson_at)} · {daysSince(s.last_lesson_at)} {daysSince(s.last_lesson_at) === 1 ? "day" : "days"} ago
+                </div>
+              )}
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {/* Pagination */}
+  {hasMultiplePages && (
+    <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 text-xs">
+      <div class="text-gray-500">
+        Page {currentPage} of {totalPages}
+      </div>
+      <div class="flex gap-1.5">
+        {hasPrev ? (
+          
+            <a href={prevPageUrl}
+            class="px-2 py-1 border rounded text-gray-700 hover:bg-gray-50 transition-colors"
+          >← Prev</a>
+        ) : (
+          <span class="px-2 py-1 border rounded text-gray-300 cursor-not-allowed">← Prev</span>
+        )}
+        {hasNext ? (
+          
+            <a href={nextPageUrl}
+            class="px-2 py-1 border rounded text-gray-700 hover:bg-gray-50 transition-colors"
+          >Next →</a>
+        ) : (
+          <span class="px-2 py-1 border rounded text-gray-300 cursor-not-allowed">Next →</span>
+        )}
+      </div>
+    </div>
+  )}
 </div>
