@@ -9,9 +9,10 @@ const { title } = Astro.props;
 const pathname = Astro.url.pathname;
 
 const navLinks = [
-  { href: "/", label: "Courses", match: (p: string) => p === "/" || p.startsWith("/courses") },
+  { href: "/", label: "CRM", match: (p: string) => p === "/" || p.startsWith("/crm") },
+  { href: "/courses", label: "Courses", match: (p: string) => p.startsWith("/courses") },
+  { href: "/dashboard", label: "Dashboard", match: (p: string) => p.startsWith("/dashboard") },
   { href: "/testimonials", label: "Testimonials", match: (p: string) => p.startsWith("/testimonials") },
-  { href: "/crm", label: "CRM", match: (p: string) => p.startsWith("/crm") },
 ];
 ---
 <!doctype html>

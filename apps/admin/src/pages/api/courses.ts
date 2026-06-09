@@ -99,5 +99,5 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   }
 
   logAudit("create", "course", data.id);
-  return redirect("/?status=created", 302);
+  return redirect("/courses?status=created", 302);
 };

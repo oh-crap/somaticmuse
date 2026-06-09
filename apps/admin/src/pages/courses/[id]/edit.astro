@@ -6,7 +6,7 @@ import { formatForInput } from "../../../lib/datetime";
 const id = Astro.params.id;
 
 if (!id) {
-  return Astro.redirect("/?error=Missing+course+ID");
+  return Astro.redirect("/courses?error=Missing+course+ID");
 }
 
 // Fetch course from DB
@@ -17,7 +17,7 @@ const { data: course, error: fetchError } = await supabaseAdmin
   .single<Course>();
 
 if (fetchError || !course) {
-  return Astro.redirect("/?error=Course+not+found");
+  return Astro.redirect("/courses?error=Course+not+found");
 }
 
 // Error from previous submit attempt

@@ -6,7 +6,7 @@ import { logAudit } from "../../../lib/audit";
 export const POST: APIRoute = async ({ params, request, redirect }) => {
   const id = params.id;
   if (!id) {
-    return redirect("/?error=Missing+course+ID", 302);
+    return redirect("/courses?error=Missing+course+ID", 302);
   }
 
   const formData = await request.formData();
@@ -89,5 +89,5 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
   }
 
   logAudit("update", "course", id);
-  return redirect("/?status=updated", 302);
+  return redirect("/courses?status=updated", 302);
 };

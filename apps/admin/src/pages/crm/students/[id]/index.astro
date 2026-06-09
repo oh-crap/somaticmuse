@@ -145,7 +145,7 @@ const mailtoUrl = student.email ? `mailto:${student.email}` : null;
 
   {/* Back + status badge */}
   <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-    <a href="/crm" class="text-sm text-blue-600 hover:underline">← Back to CRM</a>
+    <a href="/" class="text-sm text-blue-600 hover:underline">← Back to CRM</a>
     {!student.active && (
       <span class="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-xs font-medium">Inactive</span>
     )}

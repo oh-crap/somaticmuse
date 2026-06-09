@@ -1,0 +1,44 @@
+---
+// apps/admin/src/pages/dashboard/index.astro
+// Single-page dashboard hosting 5 independent tiles.
+// Each tile reads its own filters from URL params and renders SSR.
+
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import TileBilling from "../../components/dashboard/TileBilling.astro";
+import TileLoyalty from "../../components/dashboard/TileLoyalty.astro";
+import TileLessons from "../../components/dashboard/TileLessons.astro";
+import TileDropouts from "../../components/dashboard/TileDropouts.astro";
+import TileCharts from "../../components/dashboard/TileCharts.astro";
+---
+<AdminLayout title="Dashboard">
+  <h2 class="text-2xl font-semibold mb-6">Dashboard</h2>
+
+  <div class="grid grid-cols-12 gap-4">
+    <div class="col-span-6" id="tile-billing">
+      <TileBilling />
+    </div>
+
+    <div class="col-span-6" id="tile-charts">
+      <TileCharts />
+    </div>
+
+    <div class="col-span-12" id="tile-loyalty">
+      <TileLoyalty />
+    </div>
+
+    <div class="col-span-6" id="tile-lessons">
+      <TileLessons />
+    </div>
+
+    <div class="col-span-6" id="tile-dropouts">
+      <TileDropouts />
+    </div>
+  </div>
+</AdminLayout>
+
+<style>
+  /* Scroll anchor offset so tile headers aren't hidden behind any fixed UI */
+  [id^="tile-"] {
+    scroll-margin-top: 1rem;
+  }
+</style>
