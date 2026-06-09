@@ -3,6 +3,7 @@
 
 import type { APIRoute } from "astro";
 import { supabaseAdmin, type TestimonialUpdate } from "../../../lib/supabase";
+import { logAudit } from "../../../lib/audit";
 
 export const POST: APIRoute = async ({ params, request, redirect }) => {
   const id = params.id;
@@ -68,5 +69,6 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
     return redirect(`/testimonials/${id}/edit?error=${errorMsg}`, 302);
   }
 
+  logAudit("update", "testimonial", id);
   return redirect("/testimonials?status=updated", 302);
 };

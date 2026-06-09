@@ -4,6 +4,7 @@
 
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../../lib/supabase";
+import { logAudit } from "../../../../lib/audit";
 
 export const POST: APIRoute = async ({ params, request, redirect }) => {
   const tagId = params.id;
@@ -20,31 +21,38 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
       return redirect("/crm/tags?error=Invalid+color+format", 302);
     }
 
+    // Set color_assigned = true so the next auto-enrollment doesn't
+    // overwrite this manually chosen color via assign_tag_color RPC.
     const { error } = await supabaseAdmin
       .from("tags")
-      .update({ color })
+      .update({ color, color_assigned: true })
       .eq("id", tagId);
 
     if (error) {
       console.error("[CRM] Tag color update failed:", error.message);
-      return redirect(`/crm/tags?error=${encodeURIComponent(error.message)}`, 302);
+      return redirect(
+        `/crm/tags?error=${encodeURIComponent(error.message)}`,
+        302,
+      );
     }
 
+    logAudit("update", "tag", tagId);
     return redirect("/crm/tags?status=color_updated", 302);
   }
 
   if (action === "delete") {
     // Deleting a tag also cascades to student_tags
-    const { error } = await supabaseAdmin
-      .from("tags")
-      .delete()
-      .eq("id", tagId);
+    const { error } = await supabaseAdmin.from("tags").delete().eq("id", tagId);
 
     if (error) {
       console.error("[CRM] Tag delete failed:", error.message);
-      return redirect(`/crm/tags?error=${encodeURIComponent(error.message)}`, 302);
+      return redirect(
+        `/crm/tags?error=${encodeURIComponent(error.message)}`,
+        302,
+      );
     }
 
+    logAudit("delete", "tag", tagId);
     return redirect("/crm/tags?status=deleted", 302);
   }
 

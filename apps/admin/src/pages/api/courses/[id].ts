@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { parseBucharestDateTime } from "../../../lib/datetime";
+import { logAudit } from "../../../lib/audit";
 
 export const POST: APIRoute = async ({ params, request, redirect }) => {
   const id = params.id;
@@ -87,5 +88,6 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
     return redirect(`/courses/${id}/edit?error=${errorMsg}`, 302);
   }
 
+  logAudit("update", "course", id);
   return redirect("/?status=updated", 302);
 };

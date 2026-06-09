@@ -6,6 +6,7 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../../../lib/supabase";
 import type { TagType } from "@somaticmuse/shared";
+import { logAudit } from "../../../../../lib/audit";
 
 export const POST: APIRoute = async ({ params, request, redirect }) => {
   const studentId = params.id;
@@ -61,7 +62,7 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
         { type: entry.type, value: entry.value },
         { onConflict: "type,value", ignoreDuplicates: false },
       )
-      .select("id, color")
+      .select("id, color_assigned")
       .single();
 
     if (tagError || !tag) {
@@ -69,17 +70,47 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
       continue;
     }
 
-    // If tag still has default color, auto-assign from palette
-    if (tag.color === "#6B7280") {
-      await supabaseAdmin.rpc("assign_tag_color", { p_tag_id: tag.id });
+    // If tag has not yet been assigned a color from the palette,
+    // run the assignment RPC and flip the flag.
+    if (!tag.color_assigned) {
+      const { error: rpcError } = await supabaseAdmin.rpc("assign_tag_color", {
+        p_tag_id: tag.id,
+      });
+      if (rpcError) {
+        console.error("[CRM] assign_tag_color failed:", rpcError.message);
+      } else {
+        const { error: flagError } = await supabaseAdmin
+          .from("tags")
+          .update({ color_assigned: true })
+          .eq("id", tag.id);
+        if (flagError) {
+          console.error("[CRM] color_assigned flip failed:", flagError.message);
+        }
+      }
     }
 
-    // Upsert student_tag — update last_seen_at if course is more recent
+    // Upsert student_tag — keep last_seen_at as the MAX of existing and
+    // this course's start_at, so older back-fills don't downgrade newer
+    // enrollments.
+    const { data: existing } = await supabaseAdmin
+      .from("student_tags")
+      .select("last_seen_at")
+      .eq("student_id", studentId)
+      .eq("tag_id", tag.id)
+      .maybeSingle();
+
+    const newLastSeen =
+      existing &&
+      new Date(existing.last_seen_at).getTime() >=
+        new Date(course.start_at).getTime()
+        ? existing.last_seen_at
+        : course.start_at;
+
     const { error: stError } = await supabaseAdmin.from("student_tags").upsert(
       {
         student_id: studentId,
         tag_id: tag.id,
-        last_seen_at: course.start_at,
+        last_seen_at: newLastSeen,
       },
       { onConflict: "student_id,tag_id" },
     );
@@ -88,6 +119,6 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
       console.error("[CRM] student_tag upsert failed:", stError.message);
     }
   }
-
+  logAudit("enroll", "enrollment", `${studentId}:${courseId}`);
   return redirect(`/crm/students/${studentId}?status=enrolled`, 302);
 };

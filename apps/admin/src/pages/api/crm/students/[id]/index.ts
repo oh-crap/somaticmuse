@@ -5,6 +5,7 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../../../lib/supabase";
 import type { StudentUpdate } from "@somaticmuse/shared";
+import { logAudit } from "../../../../../lib/audit";
 
 /** Fields that the client is allowed to PATCH. */
 const ALLOWED_FIELDS = new Set([
@@ -122,6 +123,7 @@ export const PATCH: APIRoute = async ({ params, request }) => {
     });
   }
 
+  logAudit("update", "student", id);
   return new Response(JSON.stringify({ ok: true, updated_at: data.updated_at }), {
     status: 200,
     headers: { "Content-Type": "application/json" },

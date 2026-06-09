@@ -22,12 +22,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   try {
-    const { payload } = await jwtVerify(jwt, JWKS, {
+    await jwtVerify(jwt, JWKS, {
       issuer: `https://${TEAM_DOMAIN}.cloudflareaccess.com`,
       audience: AUD,
     });
-    // Store identity in locals for audit logging downstream
-    context.locals.userEmail = payload.email as string;
   } catch {
     return new Response("Unauthorized: invalid Access JWT", { status: 401 });
   }

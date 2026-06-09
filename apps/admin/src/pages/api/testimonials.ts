@@ -4,6 +4,7 @@
 
 import type { APIRoute } from "astro";
 import { supabaseAdmin, type TestimonialInsert } from "../../lib/supabase";
+import { logAudit } from "../../lib/audit";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
   const formData = await request.formData();
@@ -55,14 +56,21 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     visible,
   };
 
-  const { error } = await supabaseAdmin.from("testimonials").insert(insertData);
+  const { data, error } = await supabaseAdmin
+    .from("testimonials")
+    .insert(insertData)
+    .select("id")
+    .single();
 
-  if (error) {
-    console.error("[Admin] Testimonial insert failed:", error.message);
-    const errorMsg = encodeURIComponent(`Database error: ${error.message}`);
+  if (error || !data) {
+    console.error("[Admin] Testimonial insert failed:", error?.message);
+    const errorMsg = encodeURIComponent(
+      `Database error: ${error?.message ?? "unknown"}`,
+    );
     return redirect(`/testimonials/new?error=${errorMsg}`, 302);
   }
 
+  logAudit("create", "testimonial", data.id);
   return redirect("/testimonials?status=created", 302);
 };
 

@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin, type CourseInsert } from "../../lib/supabase";
 import { parseBucharestDateTime } from "../../lib/datetime";
+import { logAudit } from "../../lib/audit";
 
 export const POST: APIRoute = async ({ request, redirect }) => {
   const formData = await request.formData();
@@ -55,8 +56,12 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   let booking_url: string | null = null;
   if (booking_url_raw) {
     try {
-      new URL(booking_url_raw);
-      booking_url = booking_url_raw;
+      const parsed = new URL(booking_url_raw);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        errors.push("Booking URL must use http or https");
+      } else {
+        booking_url = booking_url_raw;
+      }
     } catch {
       errors.push("Booking URL is not a valid URL");
     }
@@ -79,13 +84,20 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     booking_url,
   };
 
-  const { error } = await supabaseAdmin.from("courses").insert(courseData);
+  const { data, error } = await supabaseAdmin
+    .from("courses")
+    .insert(courseData)
+    .select("id")
+    .single();
 
-  if (error) {
-    console.error("[Admin] Insert failed:", error.message);
-    const errorMsg = encodeURIComponent(`Database error: ${error.message}`);
+  if (error || !data) {
+    console.error("[Admin] Insert failed:", error?.message);
+    const errorMsg = encodeURIComponent(
+      `Database error: ${error?.message ?? "unknown"}`,
+    );
     return redirect(`/courses/new?error=${errorMsg}`, 302);
   }
 
+  logAudit("create", "course", data.id);
   return redirect("/?status=created", 302);
 };
