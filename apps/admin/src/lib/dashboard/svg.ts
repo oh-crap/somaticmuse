@@ -1,24 +1,31 @@
 // apps/admin/src/lib/dashboard/svg.ts
 // SVG chart primitives for Tile 5.
 // Pure functions: take values + labels, return SVG markup string.
+//
+// Tooltips via native SVG <title> elements — browser shows them on hover
+// after ~500ms. Zero JS, accessible to screen readers.
 
 export interface BarLineChartProps {
-  /** Values for bars; should have same length as `labels` */
   bars: number[];
-  /** Values for the line; should have same length as `labels` */
   line: number[];
-  /** X-axis labels */
   labels: string[];
-  /** CSS color for bars */
   barColor: string;
-  /** CSS color for line + dots */
   lineColor: string;
+  /** e.g. "Total visits" — shown in tooltip on bars */
+  barTooltipLabel: string;
+  /** e.g. "Unique students" — shown in tooltip on dots */
+  lineTooltipLabel: string;
 }
 
-export interface BarChartProps {
-  bars: number[];
+export interface StackedBarChartProps {
+  /** bars[monthIdx][segmentIdx] = value for that month/segment */
+  bars: number[][];
+  /** Color per segment index */
+  segmentColors: string[];
+  /** Label per segment index (shown in tooltip) */
+  segmentLabels: string[];
+  /** X-axis labels per month */
   labels: string[];
-  color: string;
 }
 
 const CHART_WIDTH = 480;
@@ -34,9 +41,24 @@ const TICK_FONT = 10;
 const TICK_COLOR = "#6B7280";
 const GRID_COLOR = "#E5E7EB";
 
-/**
- * Renders a combined chart: bars + line with dual y-axis (left = bars, right = line).
- */
+/** Categorical palette for studios; cycles if >10 studios. */
+export const STUDIO_COLORS = [
+  "#8B5CF6", // violet-500
+  "#F59E0B", // amber-500
+  "#EC4899", // pink-500
+  "#14B8A6", // teal-500
+  "#F97316", // orange-500
+  "#6366F1", // indigo-500
+  "#EF4444", // red-500
+  "#D946EF", // fuchsia-500
+  "#84CC16", // lime-500
+  "#0EA5E9", // sky-500
+];
+
+export function getStudioColor(index: number): string {
+  return STUDIO_COLORS[index % STUDIO_COLORS.length];
+}
+
 export function renderBarLineChart(p: BarLineChartProps): string {
   const W = CHART_WIDTH;
   const H = CHART1_HEIGHT;
@@ -55,7 +77,6 @@ export function renderBarLineChart(p: BarLineChartProps): string {
     `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="w-full h-auto">`,
   );
 
-  // Grid lines + dual y-axis labels
   for (let i = 0; i <= TICK_DIVISIONS; i++) {
     const frac = i / TICK_DIVISIONS;
     const y = PAD_TOP + innerH - frac * innerH;
@@ -66,17 +87,17 @@ export function renderBarLineChart(p: BarLineChartProps): string {
     );
   }
 
-  // Bars
+  // Bars with tooltips
   for (let i = 0; i < n; i++) {
     const x = PAD_LEFT + i * barSpacing + (barSpacing - barWidth) / 2;
     const barH = barScale === 0 ? 0 : (p.bars[i] / barScale) * innerH;
     const y = PAD_TOP + innerH - barH;
     parts.push(
-      `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barH.toFixed(1)}" fill="${p.barColor}" rx="2"/>`,
+      `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barH.toFixed(1)}" fill="${p.barColor}" rx="2"><title>${escapeXml(p.barTooltipLabel)} (${escapeXml(p.labels[i])}): ${p.bars[i]}</title></rect>`,
     );
   }
 
-  // Line (polyline) + dots
+  // Line (no tooltip — dots carry it)
   const linePoints: string[] = [];
   for (let i = 0; i < n; i++) {
     const cx = PAD_LEFT + i * barSpacing + barSpacing / 2;
@@ -89,6 +110,8 @@ export function renderBarLineChart(p: BarLineChartProps): string {
   parts.push(
     `<polyline points="${linePoints.join(" ")}" fill="none" stroke="${p.lineColor}" stroke-width="2"/>`,
   );
+
+  // Dots with tooltips (bumped radius from 3 to 4 for easier hover)
   for (let i = 0; i < n; i++) {
     const cx = PAD_LEFT + i * barSpacing + barSpacing / 2;
     const cy =
@@ -96,7 +119,7 @@ export function renderBarLineChart(p: BarLineChartProps): string {
       innerH -
       (lineScale === 0 ? 0 : (p.line[i] / lineScale) * innerH);
     parts.push(
-      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3" fill="${p.lineColor}"/>`,
+      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${p.lineColor}"><title>${escapeXml(p.lineTooltipLabel)} (${escapeXml(p.labels[i])}): ${p.line[i]}</title></circle>`,
     );
   }
 
@@ -113,15 +136,20 @@ export function renderBarLineChart(p: BarLineChartProps): string {
 }
 
 /**
- * Renders a simple bar chart with single y-axis.
+ * Renders a stacked bar chart with one bar per month and N segments per bar.
+ * Each segment has its own tooltip.
  */
-export function renderBarChart(p: BarChartProps): string {
+export function renderStackedBarChart(p: StackedBarChartProps): string {
   const W = CHART_WIDTH;
   const H = CHART2_HEIGHT;
   const innerW = W - PAD_LEFT - PAD_RIGHT_SINGLE;
   const innerH = H - PAD_TOP - PAD_BOTTOM;
 
-  const scale = niceMax(Math.max(...p.bars, 0));
+  // Per-month totals = sum of segments
+  const totals = p.bars.map((segments) =>
+    segments.reduce((sum, v) => sum + v, 0),
+  );
+  const scale = niceMax(Math.max(...totals, 0));
 
   const n = p.bars.length;
   const barSpacing = innerW / n;
@@ -132,6 +160,7 @@ export function renderBarChart(p: BarChartProps): string {
     `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" class="w-full h-auto">`,
   );
 
+  // Grid + y-axis labels
   for (let i = 0; i <= TICK_DIVISIONS; i++) {
     const frac = i / TICK_DIVISIONS;
     const y = PAD_TOP + innerH - frac * innerH;
@@ -141,15 +170,24 @@ export function renderBarChart(p: BarChartProps): string {
     );
   }
 
-  for (let i = 0; i < n; i++) {
-    const x = PAD_LEFT + i * barSpacing + (barSpacing - barWidth) / 2;
-    const barH = scale === 0 ? 0 : (p.bars[i] / scale) * innerH;
-    const y = PAD_TOP + innerH - barH;
-    parts.push(
-      `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barH.toFixed(1)}" fill="${p.color}" rx="2"/>`,
-    );
+  // Stacked bars: render from bottom up, skipping zero-value segments
+  for (let monthIdx = 0; monthIdx < n; monthIdx++) {
+    const x = PAD_LEFT + monthIdx * barSpacing + (barSpacing - barWidth) / 2;
+    let yCursor = PAD_TOP + innerH; // bottom of chart area
+
+    for (let segIdx = 0; segIdx < p.bars[monthIdx].length; segIdx++) {
+      const value = p.bars[monthIdx][segIdx];
+      if (value === 0) continue;
+      const segHeight = scale === 0 ? 0 : (value / scale) * innerH;
+      const y = yCursor - segHeight;
+      parts.push(
+        `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${segHeight.toFixed(1)}" fill="${p.segmentColors[segIdx]}"><title>${escapeXml(p.segmentLabels[segIdx])} (${escapeXml(p.labels[monthIdx])}): ${value}</title></rect>`,
+      );
+      yCursor = y;
+    }
   }
 
+  // X-axis labels
   for (let i = 0; i < n; i++) {
     const cx = PAD_LEFT + i * barSpacing + barSpacing / 2;
     parts.push(
@@ -163,11 +201,6 @@ export function renderBarChart(p: BarChartProps): string {
 
 // ----- helpers -----
 
-/**
- * Rounds n up to a "nice" value for chart y-axis.
- * Multipliers [1, 2, 5, 10] × power of 10, gives clean ticks
- * when divided by TICK_DIVISIONS (5).
- */
 function niceMax(n: number): number {
   if (n <= 0) return 5;
   if (n < 1) return 1;

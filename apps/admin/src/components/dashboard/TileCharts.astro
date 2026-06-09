@@ -4,16 +4,19 @@
 //
 // Two stacked charts over a 12-month window ending at ?ch_end=YYYY-MM:
 //   1. Combined: total visits (bars, left axis) + unique students (line, right axis)
-//   2. Lesson count per month (bars)
+//   2. Lessons per month broken down by studio (stacked bars)
 //
-// Window can be shifted ±6 months via prev/next buttons.
-// Bounded: data starts June 2026, can't go forward past current month.
+// Both charts have native <title> tooltips on hover (no JS).
 
 import { fetchChartData } from "../../lib/dashboard/charts";
-import { renderBarLineChart, renderBarChart } from "../../lib/dashboard/svg";
+import {
+  renderBarLineChart,
+  renderStackedBarChart,
+  getStudioColor,
+} from "../../lib/dashboard/svg";
 import { preserveOtherTileParams } from "../../lib/dashboard/url";
 
-const DATA_START = new Date(Date.UTC(2026, 5, 1)); // June 2026
+const DATA_START = new Date(Date.UTC(2026, 5, 1));
 
 function currentMonthStart(): Date {
   const now = new Date();
@@ -31,8 +34,6 @@ function parseEndMonth(raw: string | null): Date {
     }
   }
   if (!parsed) parsed = currentMonthStart();
-
-  // Clamp into [DATA_START, currentMonth]
   const max = currentMonthStart();
   if (parsed.getTime() > max.getTime()) return max;
   if (parsed.getTime() < DATA_START.getTime()) return DATA_START;
@@ -62,12 +63,15 @@ const url = Astro.url;
 const endMonth = parseEndMonth(url.searchParams.get("ch_end"));
 const otherParams = preserveOtherTileParams(url, "charts");
 
-const data = await fetchChartData(endMonth);
+const chartData = await fetchChartData(endMonth);
+const data = chartData.monthlyData;
+const allStudios = chartData.allStudios;
+const hasStudios = allStudios.length > 0;
 
 const startLabel = formatPeriodLabel(data[0].month);
 const endLabel = formatPeriodLabel(data[data.length - 1].month);
 
-// Navigation: shift ±6 months, capped at boundaries
+// Navigation: ±6 months, capped at boundaries
 const rawPrevEnd = new Date(
   Date.UTC(endMonth.getUTCFullYear(), endMonth.getUTCMonth() - 6, 1),
 );
@@ -75,11 +79,9 @@ const rawNextEnd = new Date(
   Date.UTC(endMonth.getUTCFullYear(), endMonth.getUTCMonth() + 6, 1),
 );
 const maxEnd = currentMonthStart();
-
 const prevEnd =
   rawPrevEnd.getTime() < DATA_START.getTime() ? DATA_START : rawPrevEnd;
 const nextEnd = rawNextEnd.getTime() > maxEnd.getTime() ? maxEnd : rawNextEnd;
-
 const hasPrev = endMonth.getTime() > DATA_START.getTime();
 const hasNext = endMonth.getTime() < maxEnd.getTime();
 
@@ -89,14 +91,22 @@ const chart1Svg = renderBarLineChart({
   bars: data.map((d) => d.total_visits),
   line: data.map((d) => d.unique_students),
   labels: monthLabels,
-  barColor: "#3B82F6", // blue-500
-  lineColor: "#10B981", // green-500
+  barColor: "#3B82F6",
+  lineColor: "#10B981",
+  barTooltipLabel: "Total visits",
+  lineTooltipLabel: "Unique students",
 });
 
-const chart2Svg = renderBarChart({
-  bars: data.map((d) => d.lesson_count),
+// Stacked bars per studio. Studios sorted alphabetically (from charts.ts),
+// each gets a deterministic color from STUDIO_COLORS palette.
+const segmentColors = allStudios.map((_, i) => getStudioColor(i));
+const chart2Svg = renderStackedBarChart({
+  bars: data.map((d) =>
+    allStudios.map((s) => d.lessons_per_studio.get(s) ?? 0),
+  ),
+  segmentColors,
+  segmentLabels: allStudios,
   labels: monthLabels,
-  color: "#8B5CF6", // violet-500
 });
 ---
 <div class="bg-white border rounded-lg p-4 h-full">
@@ -152,12 +162,22 @@ const chart2Svg = renderBarChart({
     <div set:html={chart1Svg} />
   </div>
 
-  {/* Chart 2: lesson count */}
+  {/* Chart 2: lessons per month, stacked by studio */}
   <div>
-    <div class="flex items-center gap-1 text-xs text-gray-600 mb-1">
-      <span class="inline-block w-3 h-3 bg-violet-500 rounded-sm"></span>
-      Lessons per month
-    </div>
+    <div class="text-xs text-gray-600 mb-1">Lessons per month, by studio</div>
     <div set:html={chart2Svg} />
+    {hasStudios && (
+      <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] text-gray-600">
+        {allStudios.map((studio, i) => (
+          <span class="flex items-center gap-1">
+            <span
+              class="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
+              style={`background-color: ${getStudioColor(i)}`}
+            ></span>
+            <span class="truncate">{studio}</span>
+          </span>
+        ))}
+      </div>
+    )}
   </div>
 </div>
