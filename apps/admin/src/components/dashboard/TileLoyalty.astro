@@ -1,8 +1,217 @@
 ---
 // apps/admin/src/components/dashboard/TileLoyalty.astro
-// Tile 2: Loajalita / Retention. Placeholder; full impl in Milestone 6.
+// Tile 2: Loyalty / Retention.
+//
+// URL params owned: ly_from (YYYY-MM-DD), ly_to (YYYY-MM-DD)
+// Default period: today − 365 days through today.
+
+import {
+  fetchLoyaltyData,
+  type RetentionBuckets,
+} from "../../lib/dashboard/loyalty";
+import { parseDateRange } from "../../lib/dashboard/period";
+import { preserveOtherTileParams } from "../../lib/dashboard/url";
+
+const url = Astro.url;
+const period = parseDateRange(
+  url.searchParams.get("ly_from"),
+  url.searchParams.get("ly_to"),
+);
+const otherParams = preserveOtherTileParams(url, "loyalty");
+
+const data = await fetchLoyaltyData(period.from, period.to);
+
+// Booleans extracted to avoid Astro JSX parser issues with > / 
+const hasAnyStudents = data.totalRetention.total > 0;
+const hasNoStudents = data.totalRetention.total === 0;
+const hasLoyal = data.loyalRetention.total > 0;
+const hasStudios = data.perStudio.length > 0;
+
+function pct(n: number, total: number): string {
+  if (total === 0) return "—";
+  return `${Math.round((n / total) * 100)}%`;
+}
+
+function formatDateLabel(yyyymmdd: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(yyyymmdd + "T00:00:00Z"));
+}
+
+function bucketLines(b: RetentionBuckets) {
+  return [
+    { label: "Attended 2+ courses", value: b.bucket_2_plus },
+    { label: "Attended 3+ courses", value: b.bucket_3_plus },
+    { label: "Attended 5+ courses", value: b.bucket_5_plus },
+    { label: "Attended 10+ courses", value: b.bucket_10_plus },
+  ];
+}
+
+const totalBucketLines = bucketLines(data.totalRetention);
+const loyalBucketLines = bucketLines(data.loyalRetention);
 ---
 <div class="bg-white border rounded-lg p-4 h-full">
-  <h3 class="text-sm font-semibold text-gray-700 mb-2">Loyalty</h3>
-  <p class="text-sm text-gray-400 italic">To be implemented in Milestone 2.</p>
+  <h3 class="text-sm font-semibold text-gray-700 mb-3">Loyalty / Retention</h3>
+
+  {/* Filter form */}
+  <form
+    action="/dashboard#tile-loyalty"
+    method="GET"
+    class="flex flex-wrap items-end gap-2 mb-4 pb-3 border-b border-gray-100"
+  >
+    {otherParams.map((p) => <input type="hidden" name={p.name} value={p.value} />)}
+    <div>
+      <label for="loyalty-from" class="block text-xs text-gray-500 mb-1">From</label>
+      <input
+        type="date"
+        id="loyalty-from"
+        name="ly_from"
+        value={period.fromValue}
+        class="px-2 py-1 border rounded text-sm"
+      />
+    </div>
+    <div>
+      <label for="loyalty-to" class="block text-xs text-gray-500 mb-1">To</label>
+      <input
+        type="date"
+        id="loyalty-to"
+        name="ly_to"
+        value={period.toValue}
+        class="px-2 py-1 border rounded text-sm"
+      />
+    </div>
+    <button
+      type="submit"
+      class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
+    >Apply</button>
+  </form>
+
+  {/* Period label */}
+  <div class="text-xs text-gray-500 mb-3">
+    {formatDateLabel(period.fromValue)} – {formatDateLabel(period.toValue)}
+  </div>
+
+  {hasNoStudents && (
+    <p class="text-sm text-gray-400 italic">
+      No students attended any course in this period.
+    </p>
+  )}
+
+  {hasAnyStudents && (
+    <Fragment>
+      {/* Top row: Total + Loyal side by side */}
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        {/* Total retention */}
+        <div class="border rounded-lg p-3">
+          <div class="text-xs font-semibold text-gray-700 mb-2">Total retention</div>
+          <div class="text-2xl font-semibold text-gray-900 leading-none">{data.totalRetention.total}</div>
+          <div class="text-xs text-gray-500 mb-3 mt-0.5">students with ≥1 course</div>
+          <ul class="space-y-1 text-xs">
+            {totalBucketLines.map((line) => (
+              <li class="flex justify-between text-gray-600">
+                <span>{line.label}</span>
+                <span class="text-gray-900 font-medium">
+                  {line.value}
+                  <span class="text-gray-400 ml-1">({pct(line.value, data.totalRetention.total)})</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Loyal students */}
+        <div class="border rounded-lg p-3">
+          <div class="text-xs font-semibold text-gray-700 mb-1">Loyal students</div>
+          <div class="text-xs text-gray-400 mb-2">visited 2+ studios in period</div>
+          <div class="text-2xl font-semibold text-gray-900 leading-none">{data.loyalRetention.total}</div>
+          <div class="text-xs text-gray-500 mb-3 mt-0.5">loyal students</div>
+
+          {hasLoyal && (
+            <Fragment>
+              <ul class="space-y-1 text-xs mb-3">
+                {loyalBucketLines.map((line) => (
+                  <li class="flex justify-between text-gray-600">
+                    <span>{line.label}</span>
+                    <span class="text-gray-900 font-medium">
+                      {line.value}
+                      <span class="text-gray-400 ml-1">({pct(line.value, data.loyalRetention.total)})</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div class="pt-2 border-t border-gray-100">
+                <div class="text-xs text-gray-500 mb-1">Studio distribution:</div>
+                <ul class="space-y-1 text-xs text-gray-600">
+                  <li class="flex justify-between">
+                    <span>visited 2 studios</span>
+                    <span class="text-gray-900 font-medium">{data.loyalStudioBuckets.two}</span>
+                  </li>
+                  <li class="flex justify-between">
+                    <span>visited 3–4 studios</span>
+                    <span class="text-gray-900 font-medium">{data.loyalStudioBuckets.three_to_four}</span>
+                  </li>
+                  <li class="flex justify-between">
+                    <span>visited 5+ studios</span>
+                    <span class="text-gray-900 font-medium">{data.loyalStudioBuckets.five_plus}</span>
+                  </li>
+                </ul>
+              </div>
+            </Fragment>
+          )}
+        </div>
+      </div>
+
+      {/* Per-studio table */}
+      {hasStudios && (
+        <div>
+          <div class="text-xs font-semibold text-gray-700 mb-1">Per-studio retention</div>
+          <div class="text-xs text-gray-400 mb-2">
+            Counts students who attended only this studio in period; loyal students grouped separately above.
+          </div>
+          <div class="overflow-x-auto border rounded">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                  <th class="px-3 py-2 text-left font-medium">Studio</th>
+                  <th class="px-3 py-2 text-right font-medium">≥1</th>
+                  <th class="px-3 py-2 text-right font-medium">≥2</th>
+                  <th class="px-3 py-2 text-right font-medium">≥3</th>
+                  <th class="px-3 py-2 text-right font-medium">≥5</th>
+                  <th class="px-3 py-2 text-right font-medium">≥10</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                {data.perStudio.map((s) => (
+                  <tr>
+                    <td class="px-3 py-2 text-gray-900">{s.studio_name}</td>
+                    <td class="px-3 py-2 text-right text-gray-900 font-medium">{s.total}</td>
+                    <td class="px-3 py-2 text-right text-gray-700">
+                      {s.bucket_2_plus}
+                      <span class="text-gray-400 ml-1">({pct(s.bucket_2_plus, s.total)})</span>
+                    </td>
+                    <td class="px-3 py-2 text-right text-gray-700">
+                      {s.bucket_3_plus}
+                      <span class="text-gray-400 ml-1">({pct(s.bucket_3_plus, s.total)})</span>
+                    </td>
+                    <td class="px-3 py-2 text-right text-gray-700">
+                      {s.bucket_5_plus}
+                      <span class="text-gray-400 ml-1">({pct(s.bucket_5_plus, s.total)})</span>
+                    </td>
+                    <td class="px-3 py-2 text-right text-gray-700">
+                      {s.bucket_10_plus}
+                      <span class="text-gray-400 ml-1">({pct(s.bucket_10_plus, s.total)})</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </Fragment>
+  )}
 </div>
