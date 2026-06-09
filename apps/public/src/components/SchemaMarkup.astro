@@ -1,0 +1,133 @@
+---
+// apps/public/src/components/SchemaMarkup.astro
+//
+// Emits JSON-LD structured data in <head> for SEO.
+// Include from the base layout, optionally passing upcoming courses
+// so each gets its own Course/CourseInstance schema.
+//
+// Graph contains:
+//   - WebSite (root site identity)
+//   - Person (Catrina, builds E-E-A-T)
+//   - LocalBusiness + HealthAndBeautyBusiness (the business entity)
+//   - Course[] (one per upcoming course, with CourseInstance)
+//
+// All entities cross-reference via @id so search engines can stitch
+// them into a single knowledge graph.
+
+import type { Course } from "@somaticmuse/shared";
+
+interface Props {
+  /** Upcoming courses from DB. Pass empty array on pages without courses. */
+  courses?: Course[];
+  /** Current locale; influences description language. */
+  locale?: "ro" | "en";
+}
+
+const { courses = [], locale = "ro" } = Astro.props;
+
+const SITE_URL = "https://somaticmusehealing.com";
+const SITE_NAME = "Somatic Muse Healing";
+const HERO_IMAGE = "https://media.somaticmusehealing.com/images/somatic-muse2.jpg";
+
+// ---- Person: the instructor ---------------------------------------
+const person = {
+  "@type": "Person",
+  "@id": `${SITE_URL}/#catrina`,
+  name: "Catrina Prager",
+  jobTitle:
+    locale === "en"
+      ? "Yoga and somatic practitioner"
+      : "Practiciană de yoga și somatică",
+  description:
+    locale === "en"
+      ? "Yoga instructor and somatic practitioner specializing in nervous system regulation for high-performing professionals."
+      : "Practiciană de yoga și vindecare somatică specializată în reglarea sistemului nervos pentru profesioniști de performanță.",
+  url: `${SITE_URL}/`,
+  image: HERO_IMAGE,
+  sameAs: [
+    "https://www.instagram.com/somatic_muse/",
+    "https://www.linkedin.com/in/catrina-prager-reset-flow",
+    "https://keepsearching.substack.com/",
+  ],
+  knowsLanguage: ["ro", "en"],
+  worksFor: { "@id": `${SITE_URL}/#business` },
+};
+
+// ---- LocalBusiness ------------------------------------------------
+const business = {
+  "@type": ["LocalBusiness", "HealthAndBeautyBusiness"],
+  "@id": `${SITE_URL}/#business`,
+  name: SITE_NAME,
+  description:
+    locale === "en"
+      ? "Yoga and somatic practice for nervous system regulation. Group classes and private sessions in Bucharest."
+      : "Yoga și practică somatică pentru reglarea sistemului nervos. Sesiuni de grup și private în București.",
+  url: SITE_URL,
+  telephone: "+40726173684",
+  image: HERO_IMAGE,
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "București",
+    addressCountry: "RO",
+  },
+  areaServed: {
+    "@type": "City",
+    name: "București",
+  },
+  founder: { "@id": `${SITE_URL}/#catrina` },
+  sameAs: [
+    "https://www.instagram.com/somatic_muse/",
+    "https://www.linkedin.com/in/catrina-prager-reset-flow",
+  ],
+};
+
+// ---- WebSite ------------------------------------------------------
+const website = {
+  "@type": "WebSite",
+  "@id": `${SITE_URL}/#website`,
+  url: SITE_URL,
+  name: SITE_NAME,
+  inLanguage: ["ro-RO", "en"],
+  publisher: { "@id": `${SITE_URL}/#business` },
+};
+
+// ---- Courses (one Course + CourseInstance per upcoming class) -----
+const courseSchemas = courses.map((c) => {
+  const instance: Record<string, unknown> = {
+    "@type": "CourseInstance",
+    courseMode: "onsite",
+    location: {
+      "@type": "Place",
+      name: c.studio_name,
+      address: c.studio_address,
+    },
+    startDate: c.start_at,
+    endDate: c.end_at,
+    instructor: { "@id": `${SITE_URL}/#catrina` },
+  };
+  if (c.booking_url) {
+    instance.url = c.booking_url;
+  }
+
+  return {
+    "@type": "Course",
+    "@id": `${SITE_URL}/#course-${c.id}`,
+    name: c.title,
+    description:
+      c.format === "group"
+        ? `${c.yoga_style} group class at ${c.studio_name}, Bucharest.`
+        : `${c.yoga_style} private session at ${c.studio_name}, Bucharest.`,
+    provider: { "@id": `${SITE_URL}/#business` },
+    inLanguage: locale === "en" ? "en" : "ro",
+    hasCourseInstance: instance,
+  };
+});
+
+// ---- Assemble final graph -----------------------------------------
+const graph = {
+  "@context": "https://schema.org",
+  "@graph": [website, person, business, ...courseSchemas],
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(graph)} />

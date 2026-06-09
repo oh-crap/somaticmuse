@@ -3,15 +3,18 @@ import BackgroundVideo from "../components/BackgroundVideo.astro";
 import "../styles/global.css";
 import Navigation from "../components/Navigation.astro";
 import Footer from "../components/Footer.astro";
-
+import SchemaMarkup from "../components/SchemaMarkup.astro";
+import type { Course } from "@somaticmuse/shared";
 
 interface Props {
   title: string;
   description?: string;
   lang?: "ro" | "en";
+  /** Upcoming courses to include in JSON-LD. Omit on pages without courses. */
+  courses?: Course[];
 }
 
-const { title, description, lang = "ro" } = Astro.props;
+const { title, description, lang = "ro", courses = [] } = Astro.props;
 const cfToken = import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN;
 ---
 <!doctype html>
@@ -39,6 +42,8 @@ const cfToken = import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN;
         data-cf-beacon={JSON.stringify({ token: cfToken })}
       />
     )}
+
+    <SchemaMarkup courses={courses} locale={lang} />
   </head>
   <body class="min-h-dvh flex flex-col">
     <BackgroundVideo />

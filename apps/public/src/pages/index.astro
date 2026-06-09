@@ -7,11 +7,25 @@ import Schedule from "../components/Schedule.astro";
 import Testimonials from "../components/Testimonials.astro";
 import Ebook from "../components/Ebook.astro";
 import Contact from "../components/Contact.astro";
+import { supabase } from "../lib/supabase";
+import type { Course } from "@somaticmuse/shared";
+
+// Fetch upcoming courses for JSON-LD structured data in BaseLayout.
+// Note: the <Schedule> component does its own fetch; this is a small
+// duplicate DB call. Acceptable for now; could be hoisted later.
+const { data: coursesData } = await supabase
+  .from("courses")
+  .select("*")
+  .gt("start_at", new Date().toISOString())
+  .order("start_at");
+
+const courses: Course[] = (coursesData ?? []) as Course[];
 ---
 <BaseLayout
   title="Somatic Muse Healing — Yoga și practică somatică în București"
-  description="Yoga și terapie somatică în București. Mișcare conștientă, respirație și prezență corporală. Sesiuni private și de grup."
+  description="Yoga și vindecare somatică în București. Mișcare conștientă, respirație și prezență corporală. Sesiuni private și de grup."
   lang="ro"
+  courses={courses}
 >
   <Hero lang="ro" />
   <About lang="ro" />
@@ -19,14 +33,13 @@ import Contact from "../components/Contact.astro";
   <Schedule lang="ro" />
   <Testimonials lang="ro" />
   <Ebook
-  badge="Gratuit"
-  title="Yoga pentru oameni care nu au timp de yoga"
-  description="La Somatic Muse, ne folosim de tehnici de journaling ghidat. Nu fiindcă ne vedem vreun Eminescu în devenire, ci pentru că ştim cât de important e să externalizăm tensiunea, stresul şi gândurile obsesive care nu ne dau pace. De-asta am creat acest mini ebook gratuit, ca să poţi încerca şi tu astăzi. Mi-ar plăcea să-mi spui cum te-ai simţit după. Merci şi spor."
-  ctaText="Download"
-  ctaUrl="https://media.somaticmusehealing.com/downloads/somatic-muse-ebook.pdf"
-  coverUrl="https://media.somaticmusehealing.com/images/somatic-muse-ebook.png"
-  coverAlt="Yoga pentru oameni care nu au timp de yoga — copertă ebook"
+    badge="Gratuit"
+    title="Yoga pentru oameni care nu au timp de yoga"
+    description="La Somatic Muse, ne folosim de tehnici de journaling ghidat. Nu fiindcă ne vedem vreun Eminescu în devenire, ci pentru că ştim cât de important e să externalizăm tensiunea, stresul şi gândurile obsesive care nu ne dau pace. De-asta am creat acest mini ebook gratuit, ca să poţi încerca şi tu astăzi. Mi-ar plăcea să-mi spui cum te-ai simţit după. Merci şi spor."
+    ctaText="Download"
+    ctaUrl="https://media.somaticmusehealing.com/downloads/somatic-muse-ebook.pdf"
+    coverUrl="https://media.somaticmusehealing.com/images/somatic-muse-ebook.png"
+    coverAlt="Yoga pentru oameni care nu au timp de yoga — copertă ebook"
   />
   <Contact lang="ro" />
-  
 </BaseLayout>
