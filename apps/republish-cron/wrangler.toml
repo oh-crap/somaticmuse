@@ -1,0 +1,24 @@
+# apps/republish-cron/wrangler.toml
+name = "somaticmuse-republish-cron"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Daily at 23:00 UTC.
+# Winter (Bucharest EET, UTC+2): 01:00 local.
+# Summer (Bucharest EEST, UTC+3): 02:00 local.
+# Both within the "after midnight, before morning" window.
+[triggers]
+crons = ["0 23 * * *"]
+
+[observability]
+enabled = true
+
+# Secrets — set via:
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   wrangler secret put CLOUDFLARE_DEPLOY_HOOK_URL
+
+
+workers_dev = false
+preview_urls = false
